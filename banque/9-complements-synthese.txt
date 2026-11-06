@@ -1,0 +1,115 @@
+// Compléments issus d'un sujet d'évaluation de synthèse (PHP, PDO, MVC, REST et API).
+// Notions reformulées sur un cas différent : la réservation de places pour des séances de cinéma.
+
+# 09
+
+Q: Pourquoi la création d'une réservation ne doit-elle pas passer par un formulaire en method="get" ? [cours]
++ L'URL peut être rejouée, mise en favori ou préchargée : l'action se répéterait
+- GET interdit d'envoyer plus d'un champ dans la requête du formulaire
+- Les données en GET sont chiffrées, donc illisibles par le serveur PHP
+- GET ne permet pas de lire les valeurs avec $_GET côté serveur
+? GET sert à consulter, sans effet de bord : une URL de création est rejouable (rafraîchissement, historique, liens suivis automatiquement). On crée avec POST.
+
+# 10
+
+Q: Qu'est-ce qui est dangereux dans ce champ caché d'un formulaire de réservation ? [cours]
+|<input type="hidden" name="utilisateur_id" value="42">
++ Le client peut le modifier : l'identité doit venir de la session, pas du formulaire
+- Un champ caché est envoyé en clair, alors qu'un champ visible serait chiffré
+- Un champ caché ne peut pas être lu par PHP dans le tableau $_POST
+- La valeur 42 est trop courte pour être acceptée par le navigateur
+? hidden masque le champ à l'écran, pas au client : les DevTools ou curl peuvent changer la valeur et réserver au nom d'autrui. L'identité de l'utilisateur se détermine côté serveur, depuis la session authentifiée.
+
+Q: Quels défauts présente ce formulaire de réservation ? [cours]
+|<form action="/reservations" method="get">
+|    <input id="seance_id" type="number" min="1" required>
+|    <input type="hidden" name="utilisateur_id" value="42">
+|    <button type="submit">Réserver</button>
+|</form>
++ method="get" pour une action qui crée une donnée
++ Le champ seance_id n'a pas d'attribut name : il ne sera pas envoyé
++ L'identité de l'utilisateur vient d'un champ caché modifiable
++ Aucun jeton CSRF n'est transmis avec la requête
+- L'attribut min="1" est interdit sur un champ de type number
+- Un bouton submit ne peut pas se trouver à l'intérieur d'un form
+? id relie le champ à son label et au DOM ; name donne la clé reçue par PHP. Le serveur doit en plus tout revalider : required et min ne protègent que côté navigateur.
+
+# 12
+
+Q: Le jeton CSRF est vérifié correctement avant chaque écriture. Cela suffit-il à protéger l'action ? [cours]
++ Non : il ne remplace ni l'authentification ni le contrôle des droits
+- Oui : un jeton valide prouve que l'utilisateur a le droit d'agir
+- Oui : le CSRF couvre aussi l'injection SQL et le XSS
+- Non, sauf si le jeton est régénéré à chaque seconde
+? Le jeton atteste que la requête vient d'un formulaire produit pour cette session, pas qu'elle est autorisée. L'identité et les droits se vérifient à part, côté serveur.
+
+Q: Après un POST valide et une redirection 303 (Post/Redirect/Get), un double enregistrement est-il impossible ? [cours]
++ Non : le PRG évite le renvoi au rafraîchissement, mais pas deux clics rapides
+- Oui : après la redirection, le navigateur oublie définitivement le POST
+- Oui : le code 303 empêche le serveur de traiter deux requêtes
+- Non : la redirection 303 provoque justement un second POST
+? Le PRG limite les doubles soumissions involontaires (touche F5) mais ne garantit pas seul l'unicité d'une opération : il faut en plus une contrainte d'unicité ou un contrôle côté serveur.
+
+# 17
+
+Q: L'INSERT de la réservation réussit, mais l'UPDATE des places disponibles échoue. Quel test prouve la bonne gestion de l'incident ? [cours]
++ Après l'échec simulé, aucune réservation n'est persistée et les places sont inchangées
+- Après l'échec simulé, la réservation est conservée et les places sont corrigées plus tard
+- Après l'échec simulé, le script affiche un message mais garde l'INSERT déjà fait
+- Après l'échec simulé, seule la table des places est restaurée par le SGBD
+? La transaction regroupe les deux écritures : le rollback annule l'INSERT déjà réalisé. Le test indique l'état final des DEUX tables : c'est l'atomicité qu'on vérifie.
+
+Q: Quel résultat observable vérifier après une réservation demandée sur une séance qui n'a plus aucune place ? [cours]
++ Un refus explicite, aucune réservation insérée et places_disponibles toujours à 0
+- Un succès 201, puis une correction manuelle des places par un administrateur
+- Un refus affiché, mais une réservation créée avec le statut « en attente »
+- Un succès partiel : la réservation existe et places_disponibles devient -1
+? Un test précise un état initial (0 place), une action et un résultat observable : refus (422, ou 409 selon la convention), aucune ligne insérée, compteur inchangé. C'est l'invariant métier qu'on vérifie.
+
+# 23
+
+Q: Pourquoi « vérifier que tout fonctionne » n'est-il pas un cas de test ? [cours]
++ Il ne précise ni l'état initial, ni l'action, ni le résultat observable attendu
+- Un cas de test doit toujours être automatisé pour compter comme un test
+- Un test ne peut vérifier qu'une seule fonction à la fois
+- Le mot « fonctionne » est réservé aux tests de performance
+? Un test discriminant indique la situation initiale, l'action, le résultat attendu et la propriété vérifiée. Sans cela, on ne peut ni le rejouer ni conclure.
+
+Q: Où placer la règle « le nombre de places ne peut pas être négatif » dans une architecture MVC ? [cours]
++ Dans le modèle ou le service métier, indépendamment de l'interface
+- Dans la vue, car c'est elle qui affiche le nombre de places
+- Dans le routeur, avant d'appeler le contrôleur concerné
+- Dans la feuille CSS, grâce à l'attribut min du champ
+? Le modèle porte ses invariants (nom non vide, places ≥ 0). La vue affiche et échappe ; le contrôleur lit la requête et orchestre ; le repository exécute le SQL. Une règle placée dans la vue disparaît dès qu'une autre interface (API mobile) réutilise le domaine.
+
+Q: Un repository doit-il répondre lui-même par un statut HTTP 404 quand il ne trouve pas la ligne ? [cours]
++ Non : il renvoie null ou une entité ; le contrôleur choisit le statut
+- Oui : c'est lui qui connaît la base, donc lui qui sait que la ligne manque
+- Oui, mais seulement pour une réponse JSON, jamais pour une page HTML
+- Non : il doit lever une PDOException à chaque ligne absente
+? Le repository encapsule SQL et PDO ; il ne connaît ni HTTP, ni HTML, ni JSON. Une absence devient null ; le contrôleur la traduit en 404 (page ou objet JSON d'erreur). Une PDOException signale, elle, une panne technique à traiter à part.
+
+# 24
+
+Q: Un utilisateur authentifié demande la réservation d'un autre compte. Quand l'API peut-elle répondre 404 plutôt que 403 ? [cours]
++ Quand elle masque volontairement l'existence de la ressource
+- Quand le jeton est expiré, puisque l'identité n'est plus connue
+- Quand la requête utilise la méthode DELETE, jamais avec GET
+- Quand le serveur est trop chargé pour vérifier les droits
+? 403 : identité connue mais accès interdit. 404 : choix possible pour ne pas révéler qu'une ressource existe, à condition de l'appliquer partout et de le documenter. 401 concerne une authentification absente ou invalide.
+
+Q: Quelle méthode et quelle réponse pour passer le statut d'une réservation existante à « annulée » ? [cours]
++ PATCH sur la ressource, qui répond 200 avec l'objet modifié
+- PUT sur la collection, qui répond 201 avec un en-tête Location
+- POST sur la ressource, qui répond 204 sans corps
+- DELETE sur la ressource, qui répond 200 avec l'ancien objet
+? PATCH modifie partiellement une ressource (ici le seul attribut statut) ; PUT remplacerait la représentation complète. L'état cible est renvoyé dans l'objet mis à jour (200). La cohérence des places disponibles reste à garantir côté implémentation.
+
+# 26
+
+Q: Un utilisateur authentifié lit /api/reservations/32, qui appartient à un autre compte, et obtient 200. Comment nomme-t-on cette faille ? [cours]
++ IDOR (ou BOLA) : absence de contrôle d'autorisation au niveau de l'objet
+- Injection SQL : l'identifiant n'est pas préparé avant la requête
+- CSRF : la requête est forgée depuis un autre site
+- XSS : l'identifiant est affiché sans être échappé
+? Être authentifié ne donne pas le droit de consulter tous les identifiants. Le serveur vérifie que la ressource appartient à l'identité du jeton (sauf rôle habilité), par exemple avec WHERE id = :id AND utilisateur_id = :utilisateur_id, puis répond 403 ou 404 selon la politique adoptée.

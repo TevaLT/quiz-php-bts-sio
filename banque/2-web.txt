@@ -1,0 +1,652 @@
+// Banque de questions — chapitres 09 à 13 (le web avec PHP)
+
+# 09
+
+Q: Quelle méthode HTTP convient à une recherche dont on veut pouvoir partager l'URL ?
++ GET : les critères sont visibles dans l'URL
+- POST : les critères voyagent dans le corps
+- PUT : la ressource est remplacée entièrement
+- DELETE : la ressource est supprimée ensuite
+? GET sert à consulter sans modifier. Son URL se copie, se met en favori et se partage — idéal pour une recherche ou un filtre.
+
+Q: Où voyagent les données d'un formulaire envoyé en POST ? [cours]
++ Dans le corps de la requête, pas dans l'URL
+- Dans la query string, après le point d'interrogation
+- Dans l'en-tête Host, sous forme de paires clé-valeur
+- Dans le cookie de session, chiffrées par PHP
+? POST place les données dans le corps de la requête HTTP. Elles restent lisibles par les DevTools ou un proxy réseau.
+
+Q: POST protège-t-il les données d'un formulaire ? [cours]
++ Non : seul HTTPS chiffre le transport, les DevTools montrent le corps
+- Oui : le navigateur chiffre le corps de la requête avant l'envoi
+- Oui, mais uniquement quand le formulaire contient un champ caché
+- Non, sauf si chaque champ du formulaire porte l'attribut required
+? POST ne chiffre rien. La confidentialité vient de HTTPS ; la sécurité des données vient de la validation serveur.
+
+Q: Que contient $_GET['genres'] pour l'URL ?genres[]=drame&genres[]=sf ?
++ Un tableau contenant "drame" et "sf"
+- La chaîne "drame,sf" avec une virgule
+- La chaîne "sf", la dernière valeur écrasant la première
+- null, car les crochets sont interdits dans une URL
+? Dans name="genres[]", les crochets demandent à PHP de regrouper les valeurs dans un tableau.
+
+Q: Que se passe-t-il avec trim($_GET['q']) quand l'URL est ?q[]=alien ?
++ Un TypeError : $_GET['q'] est un tableau, trim attend une chaîne
+- trim renvoie la chaîne "Array" et ajoute un avertissement discret
+- trim renvoie une chaîne vide, sans aucune erreur ni avertissement
+- trim traite chaque élément du tableau et renvoie un tableau
+? C'est pourquoi lireFiltres appelle is_string() avant trim(). Un attaquant peut toujours forger la forme des paramètres.
+
+Q: Un champ de formulaire sans attribut name… [cours]
++ n'est pas envoyé : il est absent de $_GET et $_POST
+- apparaît dans le tableau reçu avec la clé numérique 0
+- apparaît dans le tableau reçu, avec son id comme clé
+- déclenche automatiquement une réponse 400 du serveur
+? name devient la clé reçue par PHP ; id relie le champ au <label> et ne quitte jamais le navigateur.
+
+Q: Que devient une case à cocher non cochée dans la requête ? [cours]
++ Elle est absente : la clé n'existe pas
+- Elle est envoyée avec la valeur "0"
+- Elle est envoyée avec la valeur "off"
+- Elle est envoyée avec une chaîne vide
+? D'où l'usage de $_GET['genres'] ?? [] pour éviter « Undefined array key ».
+
+Q: Pourquoi required, min ou un <select> ne sont-ils pas une protection côté serveur ?
++ Le navigateur les applique ; curl ou une URL modifiée les contourne
+- PHP supprime ces attributs avant de traiter la requête reçue
+- Ils ne sont pris en compte qu'avec la méthode GET, pas POST
+- Seuls de très anciens navigateurs les ignorent ou les contournent
+? Ces attributs améliorent l'expérience utilisateur. Le serveur doit tout revérifier sans exception.
+
+Q: Que fait l'opérateur ?? dans $q = $_GET['q'] ?? ''; ? [cours]
++ Il fournit une valeur par défaut si la clé est absente ou null
+- Il vérifie que la valeur reçue est bien une chaîne non vide
+- Il convertit la valeur reçue en chaîne puis la nettoie
+- Il échappe la valeur pour l'afficher sans risque dans le HTML
+? ?? traite une clé absente ; il ne valide ni le type ni le contenu. La validation reste nécessaire.
+
+Q: Que retourne filter_input(INPUT_POST, 'annee', FILTER_VALIDATE_INT) quand le champ est absent ? [cours]
++ null
+- false
+- 0
+- Une chaîne vide
+? null si la clé est absente, false si la valeur est invalide, l'entier sinon. D'où les tests === null et === false.
+
+Q: Pourquoi éviter $_REQUEST ? [cours]
++ Il mélange GET, POST et COOKIE : l'origine devient floue
+- Il a été supprimé du langage à partir de PHP 8.0 pour des raisons de sécurité
+- Il ne contient que les champs des formulaires envoyés en POST
+- Il est plus lent que $_GET à cause de la fusion des sources
+? Selon request_order (php.ini), deux sources de même clé peuvent se masquer. On lit explicitement $_GET ou $_POST.
+
+Q: Quelle clé de $_SERVER est une simple déclaration du client, modifiable à volonté ? [cours]
++ HTTP_USER_AGENT
+- REQUEST_METHOD
+- SERVER_SOFTWARE
+- DOCUMENT_ROOT
+? L'User-Agent est déclaré par le client. Il ne prouve pas son identité : on ne bâtit jamais une décision de sécurité dessus.
+
+Q: Une fonction peut-elle lire $_GET sans que celui-ci lui soit passé ? [cours]
++ Oui, elles sont visibles partout, mais on évite de le faire
+- Non : il faut la déclarer d'abord avec le mot-clé global
+- Oui, mais seulement en lecture seule dans la fonction
+- Non, sauf pour $_SERVER, qui est la seule superglobale
+? « Accessible partout » ne veut pas dire « fiable partout ». On lit $_GET une seule fois à l'entrée puis on passe des variables ordinaires.
+
+Q: Pourquoi lireFiltres reçoit-elle un tableau en paramètre au lieu de lire $_GET ?
++ On peut la tester avec n'importe quelle source de données
+- PHP interdit de lire $_GET à l'intérieur d'une fonction
+- $_GET n'existe que dans le code placé hors des fonctions
+- Lire $_GET dans une fonction ralentit fortement la requête
+? Une fonction qui ne dépend d'aucune superglobale est testable sans navigateur.
+
+Q: Dans filtrerFilms, comment se combinent les critères ?
++ ET entre critères actifs ; OU à l'intérieur des genres cochés
+- OU partout : un seul critère satisfait suffit à garder le film
+- ET partout, y compris entre les différents genres cochés
+- Seul le premier critère actif est appliqué, les autres ignorés
+? Un film doit respecter tous les critères actifs ; mais plusieurs genres cochés sont des possibilités alternatives.
+
+Q: Aucun film ne correspond aux filtres. Que retourne filtrerFilms ?
++ Un tableau vide : ce n'est pas une erreur
+- false, pour signaler l'échec de la recherche
+- null, pour signaler l'absence de résultat
+- Une LogicException indiquant qu'il n'y a rien
+? Un résultat vide est normal : la page affichera un message « aucun résultat ».
+
+Q: Quel statut HTTP signale une requête mal formée, par exemple des paramètres de structure incohérente ?
+= 400
+? 400 Bad Request : la requête est mal formée. Selon le choix de conception, on peut aussi ignorer le paramètre fautif sans erreur ; si on le signale, c'est avec 400.
+
+Q: Que signifie « GET est sûr et idempotent » ? [cours]
++ Consulter ne modifie rien, et répéter la requête a le même effet
+- Les données sont chiffrées et ne peuvent pas être modifiées
+- La réponse est systématiquement mise en cache par le navigateur
+- La requête ne peut pas être interceptée sur le réseau public
+? « Sûr » : sans effet de bord voulu. « Idempotent » : la répétition ne change pas l'état final.
+
+Q: Comment simule-t-on DELETE depuis un formulaire HTML natif ? [cours]
++ Un POST avec un champ caché _method valant DELETE
+- method="delete" sur la balise form
+- Un lien <a> avec l'attribut method="delete"
+- Un GET avec un champ caché action=delete
+? HTML ne connaît que GET et POST. De nombreux frameworks (Laravel, Symfony…) lisent $_POST['_method'] pour router l'action.
+
+Q: Quelles données sont contrôlables par un client malveillant ?
++ L'URL et la query string
++ Les cookies reçus
++ Les champs d'un formulaire POST
+- Le code source PHP du serveur
+? Tout ce qui arrive dans la requête est modifiable : GET, POST, COOKIE, en-têtes. Seul le code serveur est hors de portée.
+
+Q: Dans un squelette de code fourni, que signifie une LogicException('À compléter') ?
++ Un marqueur « fonction vide » à remplacer par l'algorithme
+- Une exception à déclencher pour les URL sans paramètre
+- Un comportement normal, attendu par les tests
+- Une exception à conserver pour les requêtes falsifiées
+? C'est un marqueur provisoire, pas le résultat attendu : une fois la fonction écrite, une URL sans paramètre est un cas normal qui ne doit lancer aucune exception.
+
+Q: Que faire de var_dump($_GET) utilisé pendant l'apprentissage ? [cours]
++ Le retirer de la version finale : il peut révéler des données
+- Le laisser pour aider les utilisateurs à déboguer eux-mêmes
+- Le conserver : il initialise le contenu du tableau $_GET
+- L'envelopper dans htmlspecialchars puis le garder en production
+? C'est un outil de diagnostic, pas une interface utilisateur.
+
+# 10
+
+Q: Quelle est la différence entre normaliser et valider ? [cours]
++ Normaliser rend la donnée cohérente ; valider juge si elle est acceptable
+- Normaliser supprime les données invalides ; valider les réaffiche
+- Normaliser protège contre le XSS ; valider protège contre le SQL
+- Les deux mots désignent exactement la même étape du traitement
+? Trois opérations distinctes : normaliser (trim, casse), valider (règles métier), échapper (sortie). Les confondre crée des failles.
+
+Q: À quoi sert l'échappement ? [cours]
++ À adapter la donnée au contexte de sortie (HTML, URL, JSON, SQL)
+- À vérifier que la donnée respecte bien les règles métier fixées
+- À retirer les espaces inutiles autour de la donnée saisie
+- À chiffrer la donnée avant de l'envoyer vers le navigateur
+? Échapper protège contre l'injection dans le contexte cible (HTML, URL, JSON, SQL).
+
+Q: Quelle fonction protège une donnée insérée dans du HTML ?
+= htmlspecialchars
+? htmlspecialchars($s, ENT_QUOTES, 'UTF-8') transforme < > & " ' en entités : une balise ne peut plus s'exécuter.
+
+Q: Quel est le bon outil pour une valeur insérée dans une requête SQL ? [cours]
++ Une requête préparée (jamais htmlspecialchars)
+- htmlspecialchars avec l'option ENT_QUOTES
+- addslashes appliquée à chaque valeur concaténée
+- urlencode appliquée à la valeur avant l'insertion
+? Un contexte, un encodage : HTML → htmlspecialchars ; URL → http_build_query/rawurlencode ; JSON → json_encode ; SQL → requête préparée.
+
+Q: Pourquoi échapper à la sortie plutôt qu'avant d'enregistrer ? [cours]
++ Trop tôt, on obtient des doubles échappements adaptés à un seul contexte
+- htmlspecialchars ralentit beaucoup l'écriture en base de données
+- La base de données refuse d'enregistrer les entités HTML telles quelles
+- PHP échappe déjà automatiquement tout ce qui est affiché
+? On conserve la donnée brute ou validée pour les traitements internes, et on échappe au dernier moment selon le contexte.
+
+Q: Que fait ENT_QUOTES ?
++ Il convertit aussi les guillemets, utile dans un attribut HTML
+- Il ajoute des guillemets autour de la valeur échappée
+- Il supprime les guillemets contenus dans la chaîne
+- Il active la détection automatique de l'encodage UTF-8
+? Dans value="<?= ... ?>", un guillemet non converti pourrait fermer l'attribut et injecter un autre attribut (onerror=…).
+
+Q: Que retourne filter_var('abc', FILTER_VALIDATE_INT) ?
++ false
+- 0
+- null
+- La chaîne "abc"
+? Les filtres VALIDATE retournent false si la valeur est invalide. (null serait retourné avec FILTER_NULL_ON_FAILURE.)
+
+Q: Pourquoi tester filter_var(...) === false et non seulement if (!$age) ?
++ 0 est valide mais « falsy » : un test lâche le rejetterait
+- Parce que filter_var retourne simplement true si tout va bien
+- Parce que false est converti en chaîne vide par PHP ensuite
+- Parce que === s'exécute plus rapidement que le test lâche
+? Pour une note ou un nombre de places, 0 peut être une valeur légitime.
+
+Q: FILTER_VALIDATE_EMAIL prouve-t-il que l'adresse existe ? [cours]
++ Non : il vérifie une forme plausible, pas l'existence de la boîte
+- Oui : il interroge le serveur de messagerie du domaine saisi
+- Oui, mais seulement pour les domaines en .fr ou en .com
+- Non, il ne vérifie même pas qu'un @ est bien présent
+? user@example.com est valide, user@ ne l'est pas. La syntaxe est vérifiable, l'existence de la boîte non.
+
+Q: Que fait ce contrôle ?
+|if (!in_array($seance, ['alien', 'metropolis', 'parasite'], true)) {
+|    $erreurs['seance'] = 'Séance inconnue.';
+|}
++ Il refuse toute valeur différente des trois séances autorisées
+- Il accepte aussi les valeurs qui ressemblent à l'une des trois
+- Il trie les séances avant de les afficher dans le formulaire
+- Il vérifie que la séance existe vraiment dans la base de données
+? C'est une liste blanche : le serveur impose l'ensemble réellement accepté, indépendamment du <select> HTML. Le true active la comparaison stricte.
+
+Q: Le nom doit contenir de 2 à 60 caractères. Quelles longueurs testent les bornes ?
++ 1, 2, 60 et 61 caractères
+- 0, 30 et 100 caractères
+- 2 et 60 caractères seulement
+- 59, 60 et 61 caractères
+? On teste chaque borne exacte et la valeur juste hors borne : 1 (refusé), 2 (accepté), 60 (accepté), 61 (refusé).
+
+Q: L'âge doit être compris entre 15 et 120. Quelles valeurs testent les bornes ?
++ 14, 15, 120 et 121
+- 15 et 120 uniquement
+- 0, 50 et 200
+- 16, 119 et 122
+? Les valeurs 14 et 121 doivent être refusées ; 15 et 120 acceptées.
+
+Q: Quel est l'effet du motif Post/Redirect/Get ?
++ Rafraîchir la page de confirmation ne renvoie plus le formulaire
+- Les données du formulaire sont chiffrées pendant l'envoi
+- Les champs du formulaire sont validés automatiquement
+- La session est supprimée dès que le formulaire est envoyé
+? POST écrit, le serveur redirige, le navigateur recharge en GET. L'URL finale est propre, partageable et mémorisable.
+
+Q: Pourquoi un statut 303 pour la redirection après un POST ? [cours]
++ 303 See Other invite le navigateur à poursuivre en GET
+- 301 convient mieux car la redirection est définitive
+- 200 évite un aller-retour supplémentaire
+- 404 signale que le formulaire a été traité
+? 301 annonce un déplacement permanent (pas fait pour l'issue d'un POST). 302 est souvent interprété en GET mais moins explicite.
+
+Q: Pourquoi écrire exit; juste après header('Location: ...') ?
++ Sinon le script continuerait à s'exécuter après la redirection
+- Pour envoyer en plus le cookie de session au navigateur
+- Pour fermer proprement la connexion ouverte à la base
+- Parce que header() s'exécute en tâche de fond, sans attendre
+? Une redirection ne remplace pas un contrôle d'autorisation : on vérifie les droits avant de rediriger, et on arrête le script.
+
+Q: Quelle est la cause de « Cannot modify header information - headers already sent » ?
++ Du contenu (HTML, espace, echo) a été envoyé avant header()
+- Le fichier a été enregistré avec un encodage de caractères erroné
+- La session de l'utilisateur a expiré juste avant l'appel à header()
+- Le serveur a dépassé son nombre maximal de redirections successives
+? Les en-têtes HTTP doivent partir avant tout contenu. Remède : appeler header/setcookie/session_start en tout début de script, et omettre le ?> final.
+
+Q: On saisit <img src=x onerror=alert(1)> comme nom. Quel est le résultat correct ?
++ Le texte est affiché échappé ou rejeté, mais ne s'exécute jamais
+- Une alerte s'affiche : c'est le comportement normal du navigateur
+- L'image est chargée, puis PHP la supprime de la page
+- Le serveur répond systématiquement par une erreur 500 interne
+? Le test XSS de référence : après htmlspecialchars, la balise s'affiche comme du texte (&lt;img …).
+
+Q: Que risque-t-on sans contrôle de type quand nom[]=x est envoyé en POST ?
++ Un TypeError (trim ou mb_strlen reçoit un tableau)
+- Un simple Warning sans conséquence
+- Rien : PHP prend automatiquement le premier élément
+- Une injection SQL immédiate
+? Les formes inattendues se neutralisent dès la normalisation : si la valeur n'est pas une chaîne, on la remplace par ''.
+
+Q: De quel type arrive la valeur d'un champ <input type="number"> dans $_POST ? [cours]
++ string : tout arrive en chaîne tant qu'on ne convertit pas
+- int, puisque le navigateur envoie un champ de type nombre
+- float, dès que la valeur saisie contient des décimales
+- Le type dépend de la valeur de l'attribut min du champ
+? Le serveur contrôle le format et le type attendus, puis convertit explicitement.
+
+Q: Une erreur concerne un champ. Que fait-on des valeurs valides des autres champs ? [cours]
++ On les conserve (réaffichage échappé) pour éviter de tout ressaisir
+- On les efface par précaution pour repartir d'un formulaire vide
+- On les remplace par les valeurs par défaut prévues par le serveur
+- On les envoie à l'administrateur pour qu'il les corrige à la main
+? Ne jamais effacer une saisie valide à cause d'une erreur ailleurs : c'est frustrant et inutile.
+
+Q: Comment structure-t-on les erreurs de validation ?
++ Un tableau associatif, une clé par champ ('nom' => 'message')
+- Une seule chaîne qui concatène tous les messages d'erreur
+- Une exception lancée dès le premier champ jugé invalide
+- Un entier qui indique seulement le nombre d'erreurs trouvées
+? Une clé par champ permet d'afficher chaque message près de son champ ; accumuler toutes les erreurs avant d'afficher évite de recharger à chaque faute.
+
+# 11
+
+Q: Où un cookie est-il stocké ?
++ Dans le navigateur, qui le renvoie à chaque requête concernée
+- Sur le serveur, dans un fichier associé à chaque utilisateur
+- Dans la base de données de l'application, côté serveur
+- Dans le cache du serveur web, entre deux requêtes
+? Le cookie est un petit couple nom-valeur associé à un domaine et un chemin.
+
+Q: Qui peut lire et modifier un cookie ?
++ L'utilisateur, via les outils de développement
+- Uniquement le serveur web qui l'a créé à l'origine
+- Seulement le JavaScript chargé par la page elle-même
+- Personne, car PHP le chiffre avant de l'envoyer
+? Un cookie est entièrement contrôlable côté client : on n'y met ni secret, ni autorisation, et on valide sa valeur à la lecture.
+
+Q: Que fait l'option httponly d'un cookie ?
++ Elle le rend inaccessible au JavaScript (document.cookie)
+- Elle le réserve aux requêtes HTTPS uniquement, jamais en HTTP
+- Elle le limite aux requêtes émises depuis le même site
+- Elle empêche l'utilisateur de le supprimer depuis son navigateur
+? HttpOnly réduit l'impact d'un XSS : un script injecté ne peut pas lire le cookie.
+
+Q: Que fait l'option secure d'un cookie ?
++ Elle n'envoie le cookie qu'en HTTPS
+- Elle chiffre la valeur du cookie
+- Elle interdit sa lecture en JavaScript
+- Elle le supprime à la fermeture du navigateur
+? Secure protège contre l'interception réseau. À activer en production.
+
+Q: À quoi sert samesite=Lax ?
++ À restreindre son envoi lors des requêtes inter-sites (CSRF)
+- À chiffrer le cookie lorsqu'il circule entre deux sous-domaines
+- À rendre le cookie illisible pour le JavaScript de la page
+- À prolonger automatiquement la durée du cookie à chaque visite
+? SameSite aide contre le CSRF mais ne remplace pas un jeton pour les actions sensibles.
+
+Q: Un cookie défini sans date d'expiration est…
++ Un cookie de session : supprimé à la fermeture du navigateur
+- Un cookie persistant conservé pendant une année entière
+- Un cookie que PHP refuse d'envoyer au navigateur
+- Un cookie réservé aux comptes de type administrateur
+? Avec expires, il est persistant (adapté aux préférences). Sans expires, il accompagne la session du navigateur.
+
+Q: Juste après setcookie('theme', 'sombre', …), que contient $_COOKIE['theme'] dans le même script ?
++ L'ancienne valeur ou rien : la nouvelle valeur arrive après
+- 'sombre' : la valeur est disponible immédiatement dans le script
+- false, car PHP vide $_COOKIE à chaque appel de setcookie
+- Une exception est levée tant que le cookie n'existe pas
+? setcookie prépare un en-tête Set-Cookie dans la réponse ; $_COOKIE reflète la requête reçue. D'où la redirection après l'écriture.
+
+Q: Comment supprimer un cookie ?
++ Le réécrire avec une date d'expiration passée et le même chemin
+- Appeler la fonction unsetcookie('theme') avant tout affichage
+- Mettre sa valeur à null en gardant une expiration future
+- Redémarrer le serveur PHP pour vider tous les cookies
+? Si le chemin ou le domaine diffèrent de ceux de la création, le navigateur ne trouve pas le cookie à supprimer.
+
+Q: Pourquoi valider la valeur d'un cookie lorsqu'on la lit ?
++ Elle est modifiable par le client : liste blanche obligatoire
+- PHP chiffre les cookies et risque de les altérer en route
+- Les cookies dépassent presque toujours la taille autorisée
+- Pour éviter que le navigateur les laisse expirer trop tôt
+? La liste blanche remplace toute valeur inattendue par une valeur sûre (ex : 'clair').
+
+Q: Le cookie theme contient "><script>alert(1)</script>. Avec la liste blanche ['clair', 'sombre'], que se passe-t-il ?
++ La valeur est rejetée et remplacée par la valeur sûre par défaut
+- Le script s'exécute, puisque c'est un cookie du site lui-même
+- PHP supprime automatiquement les balises avant l'affichage
+- Le navigateur refuse d'envoyer un cookie qui contient des balises
+? La liste blanche protège mieux que la confiance accordée au cookie. On n'écrit dans le HTML que des classes CSS issues de cette liste.
+
+Q: Que ne faut-il jamais stocker dans un cookie ? [cours]
++ Un rôle administrateur ou un mot de passe en clair
+- Une préférence de thème ou de langue
+- Un identifiant opaque de session
+- Le fait qu'une bannière a déjà été acceptée
+? Les cookies sont modifiables : le rôle se relit côté serveur ; les secrets n'ont rien à faire côté navigateur.
+
+Q: Pourquoi l'option secure est-elle configurable en développement local ?
++ En HTTP local un cookie Secure peut ne pas revenir
+- Parce que l'option secure n'existe que sous le système Windows
+- Parce que l'option secure ralentit fortement le serveur local
+- Parce que PHP ignore toujours l'option secure en production
+? On rend le choix configurable (variable d'environnement ou constante) sans supprimer l'explication de son usage en production.
+
+Q: Quelles clés fait-on figurer dans le tableau d'options de setcookie ?
++ expires
++ path
++ samesite
+- encrypt
+- lifetime
+? Les clés admises : expires, path, domain, secure, httponly, samesite. (lifetime appartient à session_set_cookie_params.)
+
+Q: Quel est un inconvénient d'un unique cookie JSON pour toutes les préférences ?
++ Taille limitée (~4 Ko), réécriture complète, valeur décodée à valider
+- PHP ne sait pas relire un cookie qui contient du JSON valide
+- Le navigateur refuse tout cookie dont la valeur contient des accolades
+- Le format JSON chiffre la valeur et la rend illisible pour PHP
+? Avantage : un seul cookie. Inconvénients : couplage des préférences et validation de chaque clé après json_decode.
+
+Q: Quelle durée convient à une préférence de thème ? [cours]
++ Proportionnelle au besoin réel, par exemple 30 jours
+- Un an au minimum, afin que l'utilisateur ne la perde jamais
+- Quelques secondes, juste le temps de charger la page
+- Illimitée, en donnant la valeur 0 à l'option expires
+? Conserver moins longtemps réduit la fenêtre d'exposition en cas de vol du cookie.
+
+Q: Que dire des cookies analytiques ? [cours]
++ Ils nécessitent un consentement, qui doit pouvoir être retiré
+- Ils sont toujours dispensés de consentement
+- Ils sont strictement indispensables au fonctionnement
+- Ils ne concernent que les administrateurs du site
+? Distinguer le fonctionnement indispensable du suivi optionnel ; minimiser la collecte, expliquer la finalité.
+
+# 12
+
+Q: Que contient le cookie PHPSESSID ?
++ Seulement un identifiant de session aléatoire
+- Toutes les données de $_SESSION, chiffrées
+- Le nom et le mot de passe de l'utilisateur
+- La liste des pages visitées par l'utilisateur
+? Les données restent sur le serveur : seul l'identifiant circule. Un cookie transporte un identifiant opaque, pas les données.
+
+Q: Dans l'analogie du vestiaire, que représente le cookie PHPSESSID ? [cours]
++ Le numéro de vestiaire (visible) ; le casier reste côté serveur
+- Le casier lui-même, qui contient tous les objets déposés
+- La clé du casier, que le client ne voit et ne reçoit jamais
+- Le gardien du vestiaire, c'est-à-dire le serveur web lui-même
+? Le numéro est visible, le contenu ne l'est pas.
+
+Q: Où appeler session_start() ?
++ Tout en haut, avant toute sortie HTML ou echo
+- Juste avant la première lecture de $_SESSION, où que ce soit
+- Après l'envoi des en-têtes HTTP
+- À la fin du script, pour enregistrer les données
+? Sinon : « headers already sent », car le cookie de session est envoyé via un en-tête.
+
+Q: Que se passe-t-il quand on appelle deux fois ajouterFavori avec le même identifiant ?
++ Un seul exemplaire est conservé : l'opération est idempotente
+- Deux exemplaires de l'identifiant sont enregistrés dans la session
+- Une exception InvalidArgumentException signale le doublon
+- Le favori est retiré de la session dès le deuxième appel
+? On teste in_array($id, $favoris, true) avant d'ajouter. Retirer un identifiant absent ne provoque aucune erreur non plus.
+
+Q: Que signifie « idempotent » ?
++ Répéter l'opération ne change pas le résultat final
+- L'opération est impossible à annuler une fois exécutée
+- L'opération est automatiquement chiffrée par le serveur
+- L'opération ne peut s'exécuter qu'une seule fois par session
+? Idempotent : même état final après une ou plusieurs exécutions (ajout de favori, DELETE, PUT).
+
+Q: Quel est le cycle de vie d'un message flash ?
++ Défini lors du POST, lu puis supprimé lors du GET suivant
+- Conservé tout au long de la vie de la session, sans suppression
+- Lu lors du GET puis recréé automatiquement à chaque affichage
+- Écrit dans un cookie que le JavaScript de la page peut lire
+? Lecture puis unset : le message ne réapparaît pas au prochain rafraîchissement (contrairement à un paramètre GET dans l'URL).
+
+Q: Pourquoi appeler session_regenerate_id(true) après une connexion réussie ?
++ Contre la fixation de session : l'ancien identifiant est invalidé
+- Pour chiffrer le mot de passe conservé dans la session
+- Pour prolonger automatiquement la durée de vie du cookie
+- Pour supprimer les favoris enregistrés par l'utilisateur
+? Le paramètre true supprime l'ancienne session côté serveur. À faire à tout changement de privilège.
+
+Q: Que stocke-t-on dans la session à la connexion ?
++ Seulement son identifiant ; le reste est relu côté serveur
+- Le mot de passe saisi, pour pouvoir le revérifier ensuite
+- Le rôle indiqué dans le formulaire de connexion envoyé
+- Toutes les données du compte, pour éviter d'interroger la base
+? Les informations susceptibles de changer (rôle, droits) se vérifient côté serveur à chaque action sensible.
+
+Q: Pourquoi random_bytes plutôt que rand() ou mt_rand() pour un jeton CSRF ?
++ Source aléatoire cryptographiquement sûre, donc imprévisible
+- Elle est nettement plus rapide que mt_rand sur de gros volumes
+- Elle retourne des nombres plus petits, donc plus faciles à stocker
+- rand() a été totalement supprimée de PHP depuis la version 8
+? rand/mt_rand sont prévisibles : inacceptables pour la sécurité. random_bytes(32) + bin2hex donne 64 caractères hexadécimaux.
+
+Q: Pourquoi comparer des jetons avec hash_equals plutôt qu'avec === ?
++ Comparaison en temps constant : elle résiste aux mesures de temps
+- Elle ignore la différence entre majuscules et minuscules
+- Elle convertit les jetons en nombres avant comparaison
+- Elle est nettement plus rapide que l'opérateur === classique
+? Une comparaison classique s'arrête au premier caractère différent : le temps de réponse trahit des informations.
+
+Q: Qu'est-ce qu'une attaque CSRF ?
++ Un site tiers déclenche une action à l'insu d'un utilisateur connecté
+- Un script injecté dans la page lit le cookie de session et l'exfiltre
+- Un attaquant devine un mot de passe par une série d'essais automatisés
+- Une saisie utilisateur modifie le sens d'une requête SQL en cours
+? Le navigateur joint automatiquement le cookie de session à toute requête vers le site, même provoquée depuis un autre site. Défense : jeton aléatoire en champ caché.
+
+Q: Quel statut HTTP renvoie-t-on pour un jeton CSRF absent ou invalide ?
+= 403
+? 403 Forbidden : la requête est comprise mais le traitement est refusé. On arrête aussi le script (exit).
+
+Q: Pourquoi faire une suppression en POST plutôt que par un lien GET ?
++ Un lien GET peut être suivi par un robot ou une image cachée
+- POST est chiffré par le navigateur alors que GET ne l'est pas
+- Un lien GET ne peut pas transporter d'identifiant de ressource
+- PHP refuse d'exécuter une suppression reçue par la méthode GET
+? Toute action qui modifie l'état se fait en POST avec jeton CSRF.
+
+Q: Masquer le bouton « Supprimer » aux non-administrateurs suffit-il à protéger l'action ?
++ Non : l'autorisation se vérifie côté serveur à chaque action
+- Oui, à condition que le HTML de la page soit parfaitement valide
+- Oui, dès lors que la page est servie en HTTPS uniquement
+- Non, sauf si le bouton porte l'attribut disabled dans le HTML
+? Masquer n'est pas protéger : un client peut forger la requête POST sans passer par le bouton.
+
+Q: Quelles étapes composent une déconnexion complète ?
++ Vider $_SESSION
++ Supprimer le cookie de session
++ Appeler session_destroy()
+- Changer le mot de passe de l'utilisateur
+- Fermer la connexion à la base
+? Puis rediriger vers une page publique, pour ne pas rester sur une page protégée.
+
+Q: Quelle paire correspond à « authentification » puis « autorisation » ?
++ « Qui es-tu ? » puis « As-tu le droit de faire cela ? »
+- « As-tu le droit ? » puis « Qui es-tu ? »
+- « Es-tu connecté ? » puis « Es-tu en HTTPS ? »
+- « Le mot de passe est-il long ? » puis « Est-il haché ? »
+? Authentification : établir l'identité. Autorisation : contrôler l'accès, pour chaque opération protégée.
+
+Q: Quelle est la différence entre fixation de session et vol de session ? [cours]
++ Fixation : identifiant imposé avant la connexion ; vol : identifiant valide récupéré
+- Fixation : vol du cookie par une faille XSS ; vol : prédiction de l'identifiant
+- Fixation : suppression du cookie du navigateur ; vol : modification de $_SESSION
+- Il s'agit de deux noms différents pour exactement la même attaque
+? Parade à la fixation : régénérer l'identifiant. Contre le vol : HTTPS, Secure, HttpOnly, SameSite et expiration.
+
+Q: Une expiration d'inactivité de 20 minutes correspond à combien de secondes ?
+= 1200
+? 20 × 60 = 1200. On compare time() à $_SESSION['derniere_activite'] et on détruit la session au-delà.
+
+Q: Quelle différence entre expiration de la session serveur et durée du cookie de session ?
++ Le cookie ne porte que l'identifiant ; le serveur décide si la session vit
+- Elles sont strictement identiques et se règlent au même endroit
+- Le cookie contient toutes les données, le serveur ne fait que les lire
+- La session serveur dépend uniquement de la fermeture du navigateur
+? Un cookie encore valide sur une session expirée côté serveur ne donne plus accès à rien.
+
+Q: Que fait $_SESSION['favoris'] ??= []; ? [cours]
++ Il initialise le tableau si la clé n'existe pas encore
+- Il vide le tableau existant avant de le réaffecter
+- Il supprime la clé favoris de la session en cours
+- Il lance une erreur fatale si la clé existe déjà
+? ??= affecte la valeur de droite seulement si la clé est absente ou null.
+
+Q: Définir $_SESSION['utilisateur_id'] prouve-t-il qu'un mot de passe a été vérifié ? [cours]
++ Non : c'est la logique de connexion qui doit garantir ce lien
+- Oui, car seul le code PHP du serveur peut écrire dans $_SESSION
+- Oui, tant que la session n'a pas expiré côté serveur
+- Non, sauf si le cookie de session est marqué HttpOnly
+? La session mémorise une identité établie lors de la connexion. Elle ne la prouve pas à elle seule.
+
+Q: Avant hash_equals, que faut-il contrôler sur la valeur csrf reçue en POST ? [cours]
++ Que c'est une chaîne (is_string) : csrf[]=… est possible
+- Que sa longueur dépasse au moins cent caractères
+- Qu'elle ne contient que des chiffres décimaux
+- Qu'elle n'a encore jamais été utilisée auparavant
+? hash_equals exige des chaînes ; un tableau provoquerait un TypeError. Une absence ou une différence doit mener à un 403.
+
+# 13
+
+Q: Quelle phrase décrit l'autorisation, par opposition à la validation et à l'échappement ?
++ Vérifier côté serveur que l'utilisateur a le droit d'agir
+- Vérifier que la donnée reçue a bien la forme qui était attendue
+- Transformer la donnée pour qu'elle soit sûre dans le HTML
+- Vérifier que le mot de passe choisi est suffisamment long
+? Validation : forme et règles de la donnée. Autorisation : droit d'agir. Échappement : sûreté de la sortie.
+
+Q: Que doivent éviter les fonctions métier du projet CinéClub ?
++ Lire les superglobales et produire du HTML
+- Retourner des tableaux associatifs à l'appelant
+- Recevoir des paramètres déclarés avec leur type
+- Lever des exceptions pour signaler une entrée invalide
+? Elles restent pures et testables : les superglobales sont lues à l'entrée, le HTML est produit par les pages.
+
+Q: Quel est le rôle du dossier actions/ ?
++ Scripts POST qui traitent l'action puis redirigent, sans HTML
+- Les pages d'affichage du catalogue et de la fiche film
+- Les fichiers qui contiennent les données brutes des films
+- Les feuilles de style et les images utilisées par les pages
+? Chaque action vérifie méthode, CSRF, autorisation, validation ; elle modifie l'état, définit un flash puis redirige (PRG).
+
+Q: À quoi sert bootstrap.php ?
++ Démarrer la session et charger le code commun, inclus en premier
+- Contenir la liste des films et leurs genres dans un tableau
+- Produire le pied de page HTML commun à toutes les pages
+- Exécuter automatiquement les tests des fonctions métier
+? Une seule initialisation commune : session, fonctions, aides comme e() pour l'échappement.
+
+Q: Comment conserver les critères de recherche dans les liens de pagination ?
++ Avec http_build_query appliqué aux critères déjà validés
+- En les recollant à la main dans le lien, sans les encoder
+- En les stockant dans un cookie persistant valable un an
+- En les mettant dans un champ caché placé hors du lien
+? http_build_query encode correctement les valeurs et les tableaux (genres[]=…).
+
+Q: Quelle méthode HTTP utiliser pour ajouter un favori ?
++ POST avec jeton CSRF, car l'action modifie l'état
+- GET via un simple lien, plus facile à tester à la main
+- GET avec le jeton CSRF placé dans la query string
+- Indifféremment GET ou POST, selon le goût du développeur
+? Les liens GET peuvent être déclenchés par des robots ou des images cachées.
+
+Q: Un attaquant envoie role=admin dans un formulaire. Quelle notion le bloque ?
++ L'autorisation : le rôle est relu côté serveur
+- L'échappement HTML du champ role à l'affichage
+- La validation de la longueur maximale de la saisie
+- Le drapeau HttpOnly posé sur le cookie de session
+? Un champ caché, un cookie ou l'URL ne doivent jamais accorder de droit.
+
+Q: Que peut contenir un journal d'actions raisonnable ?
++ Date, action et identifiant — sans mot de passe ni jeton
+- Les mots de passe saisis, pour retrouver un accès perdu
+- Les jetons CSRF de chaque requête, pour les rejouer
+- Le contenu complet des cookies reçus à chaque requête
+? Un journal ne doit contenir aucune donnée sensible.
+
+Q: Pourquoi lance-t-on le serveur avec « php -S localhost:8000 -t public » ?
++ Seul public/ est exposé : functions.php et data/ restent protégés
+- Pour activer le chiffrement HTTPS sur le serveur intégré
+- Pour accélérer l'exécution de PHP en mettant le code en cache
+- Pour activer automatiquement la gestion des sessions PHP
+? Moins il y a de fichiers directement accessibles, moins il y a de surface d'attaque.
+
+Q: Comment s'appelle le motif « traiter le POST, rediriger en 303, afficher en GET » ? (sigle ou nom complet)
+= PRG | Post/Redirect/Get | Post-Redirect-Get
+? Post/Redirect/Get : après le traitement, la redirection 303 mène à une page GET ; un rafraîchissement ne renvoie donc pas le formulaire.
+
+Q: Pourquoi le tri du catalogue est-il choisi dans une liste blanche ?
++ Pour ne jamais accepter un tri arbitraire envoyé par le client
+- Pour que le tri s'exécute plus rapidement sur de gros volumes
+- Pour éviter d'avoir à utiliser la fonction usort ensuite
+- Parce que PHP ne sait pas trier plus de trois colonnes à la fois
+? La valeur reçue est comparée à un ensemble de choix connus (titre, annee, note) avec une valeur par défaut.
+
+Q: Que doit afficher le catalogue quand aucun film ne correspond aux critères ?
++ Un état « aucun résultat » clair, pas une erreur
+- Une page blanche, sans aucun message d'explication
+- Une page d'erreur 404 renvoyée par le serveur
+- Tous les films du catalogue, en ignorant les filtres
+? Un résultat vide est un cas normal, à traiter proprement.

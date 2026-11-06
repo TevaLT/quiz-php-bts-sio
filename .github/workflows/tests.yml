@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, simplexml
+          coverage: none
+
+      - name: Syntaxe de tous les fichiers PHP
+        run: find . -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Banque de questions et générateurs
+        run: php quiz.php --verifier --sans-couleur
+
+      - name: Logique du site
+        run: php site/tests/partie_test.php
+
+      - name: Site de bout en bout (HTTP)
+        run: php site/tests/http_test.php

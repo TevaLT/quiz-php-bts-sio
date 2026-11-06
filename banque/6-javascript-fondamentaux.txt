@@ -1,0 +1,525 @@
+// Banque de questions — chapitre 27 : JavaScript, les fondamentaux
+// Questions inspirées du cours « JavaScript Vanilla — Les fondamentaux » (T. Ferut, CC BY-SA 4.0).
+
+# 27
+
+Q: Dans une page Web interactive, quel est le rôle de JavaScript par rapport à HTML et CSS ? [cours]
++ Il programme le comportement : calculs, décisions, réactions aux actions
+- Il décrit la structure : titres, paragraphes, formulaires et liens
+- Il gère la présentation : couleurs, typographie et mise en page adaptée
+- Il remplace HTML et CSS dès que le script est chargé dans la page
+? HTML structure, CSS présente, JavaScript programme le comportement. Il ne remplace ni l'un ni l'autre : il exploite leurs possibilités.
+
+Q: Une fonction comme `window.prompt()` appartient-elle au standard ECMAScript ? [cours]
++ Non : c'est une API fournie par le navigateur, pas par le langage
+- Oui : tout moteur JavaScript doit la proposer pour être conforme
+- Oui : le navigateur l'ajoute à partir des balises HTML de la page
+- Non : elle n'existe que sous Node.js, côté serveur uniquement
+? ECMAScript décrit le langage (variables, objets, fonctions, tableaux…). window, document, alert, prompt et fetch sont des API du navigateur, pas du standard.
+
+Q: Que sont V8 et SpiderMonkey ? [cours]
++ Des moteurs qui interprètent et optimisent le code JavaScript (compilation JIT)
+- Des frameworks qui construisent des interfaces à partir de composants
+- Des éditions successives du standard ECMA-262 publiées chaque année
+- Des navigateurs de test fournis avec les outils de développement
+? Un moteur exécute le code : V8 équipe Chrome et Node.js, SpiderMonkey équipe Firefox. Le langage ne se résume ni aux pages Web, ni à une exécution purement interprétée.
+
+Q: Quelle phrase décrit le mieux le lien entre ECMAScript et JavaScript ? [cours]
++ ECMAScript est la norme du langage ; JavaScript en est l'implémentation la plus connue
+- ECMAScript est un navigateur ; JavaScript est le langage de script qu'il exécute
+- JavaScript est la norme ; ECMAScript est l'une de ses bibliothèques standard
+- ECMAScript est la version serveur de JavaScript, exécutée par Node.js
+? ECMAScript (ECMA-262) est la spécification ; JavaScript est son implémentation la plus connue. L'API du navigateur (window, document…) n'en fait pas partie.
+
+Q: Java et JavaScript sont-ils le même langage ? [cours]
++ Non : deux langages distincts, malgré un nom et une histoire partiellement liés
+- Oui : JavaScript est une version allégée de Java pour les navigateurs
+- Oui : seul le nom change selon l'environnement qui exécute le code
+- Non : JavaScript est une bibliothèque écrite en Java pour le Web
+? Java et JavaScript sont deux langages distincts. Leur nom et leur histoire sont partiellement liés, rien de plus.
+
+Q: Dans quels environnements le même langage JavaScript peut-il s'exécuter ? [cours]
++ Dans un navigateur, avec les API Web
++ Sous Node.js, hors du navigateur
+- Dans le moteur du SGBD, à la place du langage SQL
+- Dans le noyau du système d'exploitation, à chaque démarrage
+? Le langage est le même, les API disponibles diffèrent : le navigateur fournit window et document ; Node.js permet d'exécuter du JavaScript côté serveur ou en outil de développement.
+
+Q: Qui a créé JavaScript, et dans quel contexte ? [cours]
++ Brendan Eich, en 1995, chez Netscape pour le navigateur Navigator
+- Tim Berners-Lee, en 1991, au CERN pour le premier navigateur Web
+- Rasmus Lerdorf, en 1995, pour animer ses pages personnelles en PHP
+- James Gosling, en 1995, chez Sun pour programmer des appareils
+? JavaScript naît en 1995 chez Netscape (Brendan Eich). La norme ECMA-262 (ECMAScript) paraît en 1997.
+
+Q: Quelle édition d'ECMAScript a introduit let, const, les classes et les modules ? [cours]
++ ES2015, aussi appelée ES6
+- La première édition d'ECMA-262, publiée en 1997
+- ES2026, la 17e édition publiée en juin 2026
+- ES5, publiée en 2009 avec le mode strict
+? ES2015 (ES6) est une étape majeure : let, const, classes, modules et nouvelles syntaxes.
+
+Q: Que fait l'attribut defer dans <script src="script.js" defer></script> ? [cours]
++ Il exécute le script classique après l'analyse du HTML, dans l'ordre des scripts différés
+- Il charge le script seulement quand l'utilisateur clique sur un bouton de la page
+- Il exécute le script avant que le navigateur ne commence à lire le contenu de la page
+- Il rend le script facultatif : une erreur dans le fichier n'arrête plus la page
+? Avec defer, le script classique externe s'exécute une fois le document analysé : les éléments de la page existent déjà.
+
+Q: À quoi sert console.log() ? [cours]
++ À afficher une information dans la console des outils de développement
+- À afficher une boîte de dialogue modale devant la page courante
+- À écrire du texte dans le corps de la page HTML affichée
+- À enregistrer un message dans un fichier sur le disque dur
+? console.log() écrit dans la console (F12). Ce n'est pas une alert() et cela ne modifie pas la page.
+
+Q: Quelle syntaxe met en commentaire plusieurs lignes en JavaScript ? [cours]
++ /* ... */
+- <!-- ... -->
+- // ... //
+- # ... #
+? // commente une ligne, /* ... */ commente un bloc. Un commentaire explique une intention (pourquoi) et ne remplace pas un nom de variable lisible.
+
+Q: Un script s'exécute sans erreur mais affiche un mauvais résultat. De quel type d'erreur s'agit-il ? [cours]
++ Une erreur de logique : il faut tester les valeurs intermédiaires
+- Une erreur de syntaxe : un guillemet ou une parenthèse est oublié
+- Une erreur d'exécution : une variable inconnue lève une exception
+- Une erreur de chargement : le fichier .js est introuvable
+? Syntaxe : le code est illisible. Exécution : une exception se produit. Logique : tout s'exécute mais le résultat est faux. Les messages rouges de la console aident pour les deux premières.
+
+Q: Quelle démarche le cours recommande-t-il devant une erreur affichée dans la console ? [cours]
++ Lire le message et la ligne, isoler le défaut, corriger, puis refaire le test
+- Effacer la console et recharger la page jusqu'à ce que l'erreur disparaisse
+- Ignorer les messages rouges tant que la page s'affiche correctement
+- Commenter tout le script puis réactiver les lignes dans un ordre aléatoire
+? Les messages rouges de l'onglet Console indiquent souvent où chercher : fichier, ligne, nature de l'erreur.
+
+Q: Que se passe-t-il à l'exécution de ces deux lignes ? [cours]
+|const prenom = "Lina";
+|prenom = "Aya";
++ Une erreur : une constante ne peut pas être réaffectée
+- prenom vaut "Aya" : const protège seulement les nombres
+- prenom vaut "Lina" : la seconde ligne est ignorée sans erreur
+- Un avertissement s'affiche, mais prenom vaut bien "Aya"
+? const crée une liaison non réaffectable, initialisée immédiatement. Réaffecter lève une TypeError (« Assignment to constant variable »).
+
+Q: Que produit le dernier console.log dans ce code ? [cours]
+|let score = 10;
+|if (score >= 10) {
+|    let message = "Objectif atteint";
+|}
+|console.log(message);
++ Une ReferenceError : message n'existe plus hors du bloc
+- « Objectif atteint » : la variable survit à la fin du bloc if
+- undefined : la variable existe mais n'a pas reçu de valeur
+- 10 : message prend la valeur de la variable score
+? let et const ont une portée de bloc : les accolades délimitent l'endroit où la variable existe. Déclarer au plus près du besoin évite les dépendances cachées.
+
+Q: Que s'affiche-t-il à la fin de cette fonction ? [cours]
+|function exemple() {
+|    var x = 1;
+|    if (true) {
+|        var x = 2;
+|    }
+|    console.log(x);
+|}
+|exemple();
+= 2
+? var a une portée de fonction (pas de bloc) : la redéclaration dans le if modifie la même variable. D'où la consigne : préférer let et const dans le nouveau code.
+
+Q: Que se passe-t-il avec ce code ? [cours]
+|const produits = ["pain", "lait"];
+|produits.push("pomme");
++ 3 éléments : const interdit de réaffecter, pas de modifier le contenu
+- Une TypeError : un tableau déclaré avec const est figé
+- Rien : push ignore les tableaux déclarés avec const
+- produits désigne un nouveau tableau recréé par la méthode push
+? const protège la liaison (produits ne peut pas désigner un autre tableau : produits = [] lèverait une TypeError), pas le contenu du tableau. const ne signifie pas « objet immuable ».
+
+Q: Pourquoi éviter var dans du nouveau code ? [cours]
++ Sa portée est celle de la fonction : une redéclaration dans un bloc modifie la même variable
+- Il a été supprimé du langage avec ES2015, et son usage provoque désormais une erreur
+- Il ne peut contenir que des nombres entiers, jamais du texte ni des tableaux d'objets
+- Il est nettement plus lent et il est réservé aux scripts exécutés sous Node.js
+? var n'a pas de portée de bloc : c'est une source de dépendances cachées. On préfère const et let.
+
+Q: Quand faut-il déclarer une variable avec let plutôt qu'avec const ? [cours]
++ Quand elle doit recevoir une autre valeur au cours du programme, comme un compteur
+- Quand elle contient un nombre, const étant réservé aux chaînes de caractères
+- Quand elle doit rester accessible partout, y compris hors de son bloc
+- Quand on veut empêcher la modification du contenu d'un tableau
+? let = liaison réaffectable (compteur, score) ; const = liaison stable, initialisée immédiatement. Les deux ont la portée du bloc où elles figurent.
+
+Q: Que renvoie typeof [] ? [cours]
++ "object" : les tableaux ne sont pas des primitives
+- "array" : JavaScript possède un type dédié aux tableaux
+- "list" : le type des collections ordonnées d'éléments
+- "undefined" : un tableau vide n'a pas de type défini
+? Les types primitifs sont number, string, boolean, undefined et null. Les tableaux et les objets n'en sont pas : typeof [] vaut "object" (Array.isArray() permet de reconnaître un tableau).
+
+Q: Quelle est la différence entre undefined et null ? [cours]
++ undefined : aucune valeur affectée ; null : absence volontairement indiquée
+- null : variable non déclarée ; undefined : variable égale à zéro
+- Ce sont deux écritures de la même valeur, interchangeables partout
+- undefined est une erreur de syntaxe ; null est une chaîne vide
+? undefined signale l'absence de valeur affectée (variable non initialisée, paramètre absent). null est une absence volontairement indiquée par le programmeur.
+
+Q: Que dire des nombres entiers et décimaux en JavaScript ? [cours]
++ Un seul type, number, couvre les entiers comme les décimaux
+- Deux types distincts, int et float, comme dans la plupart des langages
+- Les entiers sont de type number, les décimaux de type double
+- Les décimaux sont stockés sous forme de string par défaut
+? JavaScript n'a pas de type « entier » séparé : 5, 3.14 et -2 sont tous de type number. On teste l'entier avec Number.isInteger().
+
+Q: Que valent "5" === 5 puis "5" == 5 ? [cours]
++ false puis true : == convertit implicitement, === compare valeur et type
+- true puis true : les deux opérateurs convertissent d'abord les types
+- false puis false : un texte n'est jamais égal à un nombre en JavaScript
+- true puis false : === convertit les types, alors que == les compare aussi
+? === ne fait aucune conversion implicite ; == en fait, parfois de façon trompeuse. Dans les exercices : préférer === et !==, et convertir les nombres en amont.
+
+Q: Quelle différence y a-t-il entre = et === ? [cours]
++ = affecte une valeur à une variable ; === compare valeur et type sans conversion
+- = compare deux valeurs avec conversion ; === les affecte en vérifiant leur type
+- = sert pour les nombres ; === sert uniquement pour les chaînes de caractères
+- Aucune : les deux comparent, === étant seulement plus rapide à écrire
+? Question d'oral classique : = est l'opérateur d'affectation, === l'égalité stricte (== étant l'égalité avec conversion implicite).
+
+Q: Que vaut "10" < "9" en JavaScript ? [cours]
++ true : deux chaînes sont comparées caractère par caractère
+- false : JavaScript convertit toujours les chaînes en nombres
+- Une TypeError : on ne compare pas deux chaînes avec <
+- undefined : la comparaison n'a pas de sens pour des chaînes
+? Avec deux chaînes, < compare l'ordre lexicographique : "1" vient avant "9". Pour comparer des nombres saisis, on les convertit d'abord avec Number().
+
+Q: Que s'affiche-t-il ? [cours]
+|const prenom = "Lina";
+|const age = 18;
+|console.log(`${prenom} a ${age} ans.`);
+= Lina a 18 ans.
+? Les accents graves (backticks) délimitent un template literal : ${expression} est remplacé par sa valeur. C'est plus lisible qu'une concaténation avec +.
+
+Q: Quels caractères délimitent un template literal qui accepte ${expression} ? [cours]
++ Les accents graves
+- Les guillemets doubles
+- Les apostrophes simples
+- Les doubles accolades
+? "texte" et 'texte' sont de simples chaînes ; seuls les accents graves, comme dans `texte ${valeur}`, interpolent des expressions.
+
+Q: Que renvoie prompt("Votre prénom ?") si l'utilisateur clique sur Annuler ? [cours]
++ null
+- Une chaîne vide
+- undefined
+- false
+? prompt() renvoie la chaîne saisie, ou null en cas d'annulation. alert() n'a pas de valeur de retour utile ; confirm() renvoie true ou false.
+
+Q: Que renvoie confirm("Continuer ?") ? [cours]
++ true pour OK, false pour Annuler
+- La chaîne "ok" ou la chaîne "annuler"
+- Le texte saisi, ou null en cas d'annulation
+- Toujours undefined, comme alert()
+? confirm() renvoie un booléen. Ces boîtes de dialogue servent aux premiers exercices, pas à concevoir une interface finale.
+
+Q: Que vaut brutA + brutB si prompt() a renvoyé "2" puis "3" ? [cours]
+|const brutA = prompt("Premier nombre ?");
+|const brutB = prompt("Second nombre ?");
+|console.log(brutA + brutB);
++ "23" : + concatène quand un opérande est une chaîne
+- 5 : JavaScript convertit les deux chaînes en nombres
+- NaN : on ne peut pas additionner deux saisies de texte
+- "5" : le résultat est un nombre écrit sous forme de texte
+? prompt() renvoie du texte. Avec +, la concaténation l'emporte dès qu'un opérande est une chaîne : "2" + "3" donne "23". Il faut convertir avec Number() avant de calculer.
+
+Q: Pourquoi convertir avec Number() les saisies obtenues par prompt() avant de calculer ? [cours]
++ prompt() renvoie du texte : + concaténerait au lieu d'additionner
+- prompt() renvoie un tableau de caractères qu'il faut recomposer
+- Number() vérifie aussi que la saisie est comprise entre 0 et 100
+- Sans Number(), le navigateur refuse d'exécuter le calcul demandé
+? Number() convertit une chaîne numérique en number, ou produit NaN. Il faut en plus valider la saisie avant de calculer.
+
+Q: Que vaut Number(null) ? [cours]
++ 0 : il faut tester null avant de convertir
+- NaN : null n'est pas un nombre
+- null : Number conserve les valeurs vides
+- Une TypeError : null ne se convertit pas
+? Number(null) vaut 0, comme Number("") : une annulation ou une saisie vide passerait pour un zéro. D'où le test saisie === null avant toute conversion.
+
+Q: Quel test rejette exactement l'annulation, la saisie vide et la saisie faite d'espaces, sans rejeter "0" ? [cours]
++ saisie === null || saisie.trim() === ""
+- saisie === null || saisie === "" || saisie === " "
+- saisie == null || isNaN(saisie)
+- !saisie || Number(saisie) === 0
+? trim() retire les espaces de début et de fin. Le deuxième test laisse passer "   ". isNaN("") vaut false (le texte vide devient 0), donc le troisième accepte "". Le dernier rejette aussi la saisie "0", qui est valide.
+
+Q: Quel test permet de savoir si nombre est un nombre fini, utilisable dans un calcul ? [cours]
++ Number.isFinite(nombre)
+- nombre === NaN
+- typeof nombre === "number"
+- nombre != null
+? NaN === NaN vaut false : on ne peut pas tester NaN avec ===. typeof NaN vaut "number". Number.isFinite() refuse NaN et Infinity.
+
+Q: Que renvoient ces deux appels ? [cours]
+|Number.isInteger("12");
+|isNaN("");
++ false puis false
+- true puis true
+- true puis false
+- false puis true
+? Number.isInteger() ne convertit pas les chaînes. Le isNaN global convertit avant de tester : "" devient 0, un nombre, donc isNaN("") vaut false. Number.isNaN() n'effectue pas cette conversion.
+
+Q: Quel est le type du résultat de prixTTC.toFixed(2) ? [cours]
++ string : une chaîne formatée à deux décimales
+- number : le nombre arrondi à deux décimales
+- boolean : true quand le nombre a deux décimales
+- undefined : toFixed modifie la variable sur place
+? toFixed(2) produit une chaîne. Pour recalculer avec la valeur, il faut la reconvertir avec Number() ; on s'en sert surtout pour afficher.
+
+Q: Que valent 17 % 5 et 2 ** 4 ? [cours]
++ 2 et 16
+- 3 et 16
+- 2 et 8
+- 3 et 8
+? % renvoie le reste de la division (17 = 3 × 5 + 2) et ** est l'élévation à une puissance (2⁴ = 16).
+
+Q: Que valent 5 / 0 et 0 / 0 en JavaScript ? [cours]
++ Infinity et NaN : à détecter avant d'afficher
+- Une erreur de division par zéro dans les deux cas
+- 0 et 0 : une division par zéro vaut zéro
+- null et undefined : le résultat n'existe pas
+? JavaScript ne lève pas d'exception : 5 / 0 vaut Infinity et 0 / 0 vaut NaN. On les détecte (Number.isFinite) avant d'afficher ou de poursuivre le calcul.
+
+Q: Que s'affiche-t-il ? [cours]
+|const note = 14;
+|if (note >= 16) {
+|    console.log("Très bien");
+|} else if (note >= 10) {
+|    console.log("Admis");
+|} else {
+|    console.log("À retravailler");
+|}
+= Admis
+? Les conditions sont testées dans l'ordre et la première vraie l'emporte. 14 n'est pas ≥ 16, mais 14 ≥ 10.
+
+Q: Quel test détermine correctement si une saisie convertie en nombre est exactement égale à 10 ? [cours]
++ nombre === 10
+- nombre = 10
+- nombre == "10"
+- nombre > 10
+? = est une affectation, pas un test. == "10" autorise la conversion implicite. > 10 exclut la valeur 10 elle-même. Après Number(), === compare deux nombres.
+
+Q: Que signifie l'évaluation « court-circuit » des opérateurs && et || ? [cours]
++ Le second opérande n'est pas évalué si le premier suffit au résultat
+- Les deux opérandes sont toujours évalués, mais de droite à gauche
+- Le résultat est toujours un booléen, jamais l'un des opérandes
+- L'opérateur s'arrête au premier opérande de type nombre
+? Avec false && quelque chose, le résultat est connu sans évaluer l'autre côté ; de même pour true || quelque chose.
+
+Q: Quelles valeurs sont falsy, c'est-à-dire testées comme fausses dans un if ? [cours]
++ 0
++ ""
++ NaN
+- "0"
+- []
+- "false"
+? Falsy : false, 0, -0, "", null, undefined et NaN. Une chaîne non vide, même "0" ou "false", et un tableau vide [] sont truthy.
+
+Q: Le bloc de ce if s'exécute-t-il ? [cours]
+|if ("0") {
+|    console.log("exécuté");
+|}
++ Oui : une chaîne non vide est truthy, même « 0 »
+- Non : "0" est converti en nombre 0, qui est falsy
+- Non : seules les chaînes vides sont ignorées par un if
+- Oui, mais seulement parce que "0" est converti par ===
+? if teste la valeur en contexte booléen : toute chaîne non vide est truthy, alors que le nombre 0 est falsy. Il faut différencier conversion en booléen et égalité stricte.
+
+Q: Que s'affiche-t-il lorsque operation vaut "+" ? [cours]
+|switch (operation) {
+|    case "+":
+|        console.log("Addition");
+|    case "-":
+|        console.log("Soustraction");
+|        break;
+|    default:
+|        console.log("Inconnu");
+|}
++ Addition puis Soustraction
+- Addition seulement
+- Soustraction seulement
+- Addition, Soustraction puis Inconnu
+? Sans break, l'exécution continue dans le cas suivant (fall-through). Le break du cas "-" arrête le switch avant default.
+
+Q: Quelle comparaison switch utilise-t-il pour choisir un case ? [cours]
++ L'égalité stricte (===)
+- L'égalité avec conversion (==)
+- L'ordre alphabétique des valeurs
+- La comparaison des références d'objets
+? case compare à l'aide d'une égalité stricte : "1" ne correspond pas à 1. Avec prompt(), qui renvoie du texte, on écrit donc case "1".
+
+Q: Quelle approche donne correctement le signe de a * b, notamment pour a = -3 et b = -2 ? [cours]
++ Calculer produit = a * b, puis tester produit > 0, produit < 0, sinon nul
+- Tester seulement a < 0 || b < 0 : un nombre négatif rend le produit négatif
+- Tester a > 0 && b > 0, sinon conclure que le produit est négatif
+- Comparer a et b : le plus petit des deux fixe le signe du produit
+? Deux négatifs donnent un produit positif (+6) et un facteur nul donne un produit nul : les cas pièges sont « deux négatifs » et zéro.
+
+Q: Quand la condition d'une boucle while est-elle contrôlée ? [cours]
++ Avant chaque tour, y compris le premier
+- Après chaque tour, y compris le dernier
+- Une seule fois, avant le tout premier tour
+- Une seule fois, après le dernier tour de boucle
+? while teste d'abord, exécute ensuite : si la condition est fausse dès le départ, le corps ne s'exécute jamais. do…while, à l'inverse, exécute d'abord.
+
+Q: Quelle boucle exécute toujours son corps au moins une fois ? [cours]
++ do…while
+- while
+- for
+- for…of
+? do…while exécute le corps avant le premier test. while et for testent avant d'entrer ; for…of ne s'exécute pas sur un tableau vide.
+
+Q: Que se passe-t-il avec cette boucle ? [cours]
+|let compteur = 1;
+|while (compteur <= 5) {
+|    console.log(compteur);
+|}
++ Boucle infinie : compteur n'évolue jamais, la condition reste vraie
+- Elle affiche 1, 2, 3, 4, 5 puis s'arrête normalement
+- Une erreur de syntaxe empêche toute exécution du script
+- Elle affiche 1 une seule fois : while ne répète pas sans break
+? Sans compteur++ dans le corps, la condition reste vraie : boucle infinie. Une condition cohérente doit pouvoir devenir fausse, ou proposer une sortie explicite.
+
+Q: Dans for (let i = 0; i < 5; i++), quand l'instruction i++ est-elle exécutée ? [cours]
++ Après chaque passage du corps de la boucle
+- Une seule fois, avant le premier tour
+- Avant chaque test de la condition i < 5
+- Seulement au dernier tour de la boucle
+? Initialisation (une fois) → test de la condition → corps → mise à jour (i++) → nouveau test. Et i n'existe pas hors de la boucle (let).
+
+Q: Que valent a et b à la fin de ce code ? [cours]
+|let i = 5;
+|let a = i++;
+|let b = ++i;
++ a = 5 et b = 7
+- a = 6 et b = 6
+- a = 5 et b = 6
+- a = 6 et b = 7
+? i++ renvoie l'ancienne valeur puis incrémente (a = 5, i = 6) ; ++i incrémente puis renvoie la nouvelle valeur (i = 7, b = 7). Les deux modifient i, leur valeur retournée diffère.
+
+Q: Quelle boucle choisir pour redemander une saisie jusqu'à ce qu'elle soit valide ? [cours]
++ while : le nombre de tours est inconnu à l'avance
+- for : le compteur garantit que la saisie finira par être valide
+- do…while uniquement, car while ne sait pas lire une saisie
+- for…of : elle parcourt les saisies que l'utilisateur pourrait taper
+? while convient quand le programme attend une condition (saisie valide, état particulier) ; for convient quand le nombre de tours est connu (indices, N fois). On choisit selon ce qui rend l'intention plus lisible.
+
+Q: À quoi sert break dans cette boucle ? [cours]
+|let choix;
+|do {
+|    choix = prompt("Tapez stop pour sortir");
+|    if (choix === null) break;
+|} while (choix !== "stop");
++ À sortir immédiatement de la boucle quand l'utilisateur annule
+- À ignorer la saisie en cours et à passer au tour suivant
+- À mettre la boucle en pause jusqu'au prochain clic de l'utilisateur
+- À revenir au tout début du programme, avant la déclaration de choix
+? break quitte la boucle (continue, lui, abandonne le tour courant et reprend au suivant). Ici il évite de boucler indéfiniment si prompt() renvoie null.
+
+Q: Pourquoi initialiser resultat à 1 plutôt qu'à 0 dans ce calcul de puissance ? [cours]
+|let resultat = 1;
+|for (let i = 0; i < exposant; i++) {
+|    resultat *= base;
+|}
++ 1 est l'élément neutre de la multiplication : avec 0, le produit resterait 0
+- Une boucle for exige une valeur de départ non nulle pour démarrer
+- JavaScript refuse de multiplier une variable qui vaut zéro
+- Pour que le premier tour de boucle ne soit pas compté dans la puissance
+? Avec resultat = 1, la boucle réalise exactement exposant multiplications ; exposant = 0 donne bien 1. (L'opérateur base ** exposant existe aussi.)
+
+Q: Pour const notes = [12, 15, 18], que vaut notes[3] ? [cours]
++ undefined
+- 18
+- 15
+- Une ReferenceError
+? Le premier élément est à l'indice 0 : les indices valides sont 0, 1 et 2, et notes.length vaut 3. Lire un indice inexistant renvoie undefined, sans lever d'erreur.
+
+Q: Pourquoi la condition d'un parcours s'écrit-elle i < notes.length et non i <= notes.length ? [cours]
++ Les indices vont de 0 à length − 1 : l'indice length n'existe pas
+- length compte à partir de zéro, il est donc trop petit d'une unité
+- <= provoque une erreur de syntaxe dans une boucle for
+- < est le seul opérateur de comparaison accepté dans un for
+? Pour un tableau de 4 éléments, les indices sont 0, 1, 2 et 3. Avec <=, le dernier tour lirait notes[4], qui vaut undefined.
+
+Q: Que se passe-t-il si l'on calcule la moyenne d'un tableau vide avec somme / notes.length ? [cours]
++ 0 / 0 donne NaN : il faut traiter le cas length === 0 avant le calcul
+- Une exception de division par zéro arrête le script
+- Le résultat vaut 0, car la somme d'un tableau vide est nulle
+- Le résultat vaut Infinity, car length vaut zéro
+? La somme d'un tableau vide vaut 0 et length vaut 0 : 0 / 0 vaut NaN. Avant de calculer la moyenne d'un tableau inconnu, on vérifie qu'il n'est pas vide.
+
+Q: Pourquoi diviser la somme par notes.length plutôt que par 3 écrit en dur ? [cours]
++ Le calcul reste juste quand le nombre de notes change
+- length est plus rapide à évaluer qu'un nombre écrit en dur
+- Un nombre littéral est interdit dans une division en JavaScript
+- Le diviseur doit toujours être de type string avant le calcul
+? Un diviseur figé devient faux dès qu'on ajoute ou retire une note. length suit automatiquement la taille du tableau.
+
+Q: Pourquoi const est-elle autorisée dans for (const produit of produits) ? [cours]
++ Une nouvelle liaison produit est créée à chaque itération
+- const est ignorée par le moteur à l'intérieur d'une boucle
+- La boucle copie le tableau puis le déclare constant
+- Le moteur réaffecte produit en contournant la protection de const
+? for…of parcourt directement les valeurs : à chaque tour, produit est une nouvelle constante, locale à ce tour de boucle.
+
+Q: Quand préférer la boucle for classique à for…of pour parcourir un tableau ? [cours]
++ Quand le traitement a besoin de l'indice de chaque élément
+- Quand le tableau contient plus de dix éléments
+- Quand les éléments sont de type number plutôt que string
+- Quand le tableau est déclaré avec let plutôt qu'avec const
+? for…of convient quand seuls les éléments importent ; for avec indice (i) est le bon choix si la position compte, par exemple pour afficher « 0 : pain ».
+
+Q: Quelles méthodes ajoutent un élément à un tableau ? [cours]
++ push, à la fin du tableau
++ unshift, au début du tableau
+- pop
+- shift
+? push/pop agissent à la fin (ajout/retrait), unshift/shift au début (ajout/retrait). Ces méthodes modifient directement le tableau.
+
+Q: Quel est le contenu de courses à la fin de ce code ? (tape le tableau obtenu) [cours]
+|const courses = ["citron"];
+|courses.push("kiwi", "banane");
+|courses.pop();
+|courses.unshift("coco");
+|courses.shift();
+|console.log(courses);
+= ["citron", "kiwi"] | ['citron', 'kiwi'] | citron,kiwi
+i: écris le tableau, par exemple ["a", "b"]
+? push ajoute kiwi et banane ; pop retire banane ; unshift ajoute coco au début ; shift le retire : il reste ["citron", "kiwi"].
+
+Q: Quelle précaution prendre avant courses.splice(position, 1) ? [cours]
+|const position = courses.indexOf(produit);
++ Tester position !== -1 : indexOf renvoie -1 si l'élément est absent
+- Vérifier que position est de type string avant de l'utiliser
+- Copier le tableau d'abord, car splice ne modifie pas l'original
+- Appeler pop() avant pour libérer une place dans le tableau
+? splice(-1, 1) supprimerait le dernier élément du tableau : un produit absent ferait disparaître un autre produit. Il faut donc tester -1 avant toute suppression.
+
+Q: Quelle séquence valide un entier strictement positif saisi avec prompt() ? [cours]
++ Écarter null et "", convertir avec Number(), puis tester Number.isInteger(n) && n > 0
+- Convertir directement avec Number(), puis tester seulement que n est supérieur à 0
+- Tester typeof saisie === "number" avant de convertir, puis calculer avec la saisie
+- Tester isNaN(saisie), puis calculer directement avec la chaîne sans la convertir
+? Ordre : présence de la saisie, conversion explicite, puis validité (entier ET strictement positif). typeof saisie vaut toujours "string" après prompt().
+
+Q: Quelle est la première étape de la méthode de résolution d'un exercice ? [cours]
++ Décrire les entrées : quelles valeurs, quel format, et ce que signifie Annuler
+- Écrire tout le code, puis corriger les erreurs affichées par la console
+- Choisir la boucle la plus rapide pour le traitement des données
+- Rédiger les jeux d'essai une fois le programme entièrement terminé
+? Méthode en cinq temps : décrire les entrées, écrire les règles, découper le traitement, prévoir les sorties, tester et corriger. On produit d'abord un programme juste, puis on le simplifie sans perdre les contrôles.
+
+Q: Quels jeux d'essai permettent de démontrer qu'un programme est correct ? [cours]
++ Un cas nominal, un cas limite et une entrée incorrecte
+- Un seul cas nominal, répété avec plusieurs valeurs voisines
+- Uniquement les cas où l'utilisateur clique sur Annuler
+- Les cas où le script plante, pas les cas qui fonctionnent
+? Tester un cas nominal, une limite (0, négatif, borne) et une entrée incorrecte (texte, vide, Annuler). Un résultat incohérent n'est pas forcément une erreur de syntaxe : on vérifie les types et les valeurs.

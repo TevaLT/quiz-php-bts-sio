@@ -1,0 +1,4 @@
+# Fins de ligne LF dans le dépôt (le script .cmd garde CRLF pour Windows).
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.png binary

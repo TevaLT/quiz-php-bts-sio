@@ -1,0 +1,8 @@
+# Historique personnel des parties (créé au premier lancement).
+historique.json
+
+# Fichiers des systèmes et des éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

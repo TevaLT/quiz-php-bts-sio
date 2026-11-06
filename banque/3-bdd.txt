@@ -1,0 +1,631 @@
+// Banque de questions — chapitres 14 à 18 (bases de données, PDO, transactions, authentification)
+
+# 14
+
+Q: Quelle contrainte garantit qu'une adresse email n'apparaît qu'une seule fois dans la table utilisateurs ?
++ UNIQUE sur la colonne email
+- CHECK sur la colonne email
+- DEFAULT sur la colonne email
+- PRIMARY KEY sur la colonne nom
+? UNIQUE interdit les doublons dans la colonne (ou la combinaison de colonnes). Une violation produit une erreur du SGBD (SQLSTATE 23000 sous MySQL).
+
+Q: À quoi sert une clé étrangère ?
++ À garantir qu'une ligne ne référence pas une ligne inexistante d'une autre table
+- À accélérer systématiquement toutes les recherches faites sur la table concernée
+- À interdire à une colonne de contenir la valeur NULL dans toutes les lignes
+- À chiffrer les identifiants échangés entre deux tables liées par une jointure
+? C'est l'intégrité référentielle : on ne peut pas insérer un film avec un genre_id qui n'existe pas dans genres.
+
+Q: Comment représente-t-on une relation plusieurs-à-plusieurs (un film, plusieurs réalisateurs) ?
++ Par une table d'association portant deux clés étrangères
+- Par une colonne contenant la liste des identifiants séparés par des virgules
+- Par une clé primaire composée d'une seule colonne de type texte
+- Par deux tables identiques dont les lignes sont recopiées l'une dans l'autre
+? La table d'association (film_id, realisateur_id) a souvent une clé primaire composite qui interdit les doublons.
+
+Q: Que signifie NULL en SQL ?
++ L'absence de valeur connue, différente de 0 et de la chaîne vide
+- Le nombre zéro, utilisé comme valeur par défaut des colonnes
+- Une chaîne vide, de longueur nulle mais bien présente
+- Une valeur négative refusée par la clause CHECK
+? Un film non encore évalué a une note NULL, pas 0 : un film noté 0 est différent d'un film sans note.
+
+Q: Comment tester une valeur absente dans une clause WHERE ?
++ WHERE archive_le IS NULL
+- WHERE archive_le = NULL
+- WHERE archive_le == NULL
+- WHERE archive_le EQUALS NULL
+? NULL n'est égal à rien, pas même à NULL : on utilise IS NULL / IS NOT NULL.
+
+Q: Quel type SQL convient à une note décimale exacte comme 8,5 ? [cours]
++ DECIMAL(3,1)
+- FLOAT(3)
+- VARCHAR(3)
+- SMALLINT
+? DECIMAL stocke une valeur décimale exacte (ici 3 chiffres dont 1 après la virgule). FLOAT est une représentation approchée.
+
+Q: Pourquoi le mot de passe est-il stocké dans une colonne VARCHAR(255) sous forme de hash ?
++ Le hash généré est long, et le mot de passe en clair ne se stocke jamais
+- Le hash est court, mais PHP exige 255 caractères au minimum
+- Le mot de passe en clair doit rester lisible pour permettre sa récupération
+- Une colonne de 255 caractères accélère toutes les connexions des utilisateurs
+? password_hash(PASSWORD_DEFAULT) produit une chaîne qui peut s'allonger quand PHP change d'algorithme : on prévoit 255 caractères.
+
+Q: Quelle jointure compte les films par genre en gardant aussi un genre sans aucun film ?
+|SELECT g.nom, COUNT(f.id) AS nb
+|FROM genres g
+|??? JOIN films f ON f.genre_id = g.id
+|GROUP BY g.id, g.nom;
++ LEFT : garde tous les genres, même sans film
+- INNER : ne garde que les genres ayant au moins un film
+- CROSS : associe chaque genre à chaque film sans condition
+- RIGHT : garde tous les films, même ceux sans genre associé
+? LEFT JOIN conserve toutes les lignes de gauche ; les colonnes de droite valent NULL quand il n'y a pas de correspondance.
+
+Q: Pourquoi COUNT(f.id) plutôt que COUNT(*) dans cette requête ?
++ COUNT(colonne) ignore les NULL : un genre sans film donne 0, pas 1
+- COUNT(*) est interdit avec un GROUP BY dans la plupart des SGBD
+- COUNT(f.id) additionne les valeurs des identifiants au lieu de compter
+- COUNT(*) compte uniquement les lignes dont la note est non nulle
+? Avec LEFT JOIN, un genre vide produit une ligne dont f.id est NULL : COUNT(*) la compterait, COUNT(f.id) l'ignore.
+
+Q: Quelle clause filtre les résultats APRÈS un regroupement GROUP BY ?
+= HAVING
+? WHERE filtre les lignes avant le regroupement ; HAVING filtre les groupes (par exemple HAVING COUNT(*) > 2).
+
+Q: Dans quel ordre écrit-on les clauses d'un SELECT complet ?
++ SELECT, FROM, JOIN, WHERE, GROUP BY, HAVING, ORDER BY, LIMIT
+- SELECT, FROM, WHERE, JOIN, HAVING, GROUP BY, LIMIT, ORDER BY
+- FROM, SELECT, JOIN, GROUP BY, WHERE, HAVING, LIMIT, ORDER BY
+- SELECT, WHERE, FROM, JOIN, ORDER BY, GROUP BY, HAVING, LIMIT
+? L'ordre d'écriture est imposé par la syntaxe SQL.
+
+Q: Quelle requête donne les trois films les mieux notés ?
++ SELECT * FROM films WHERE note IS NOT NULL ORDER BY note DESC LIMIT 3;
+- SELECT * FROM films WHERE note IS NOT NULL ORDER BY note ASC LIMIT 3;
+- SELECT * FROM films WHERE note IS NOT NULL GROUP BY note LIMIT 3;
+- SELECT * FROM films WHERE note IS NOT NULL ORDER BY titre DESC LIMIT 3;
+? ORDER BY note DESC place les meilleures notes d'abord, LIMIT 3 garde les trois premières. On exclut les films sans note.
+
+Q: Que produit un INSERT qui viole la contrainte CHECK (note BETWEEN 0 AND 10) ?
++ Une erreur du SGBD : la ligne est refusée
+- Un avertissement, avec la note corrigée automatiquement
+- Une insertion silencieuse avec NULL à la place de la note
+- Un arrondi vers la borne la plus proche, 10 par exemple
+? Les contraintes sont la dernière défense : même si PHP laisse passer une valeur absurde, la base la refuse.
+
+Q: Pourquoi la table reservations porte-t-elle UNIQUE (utilisateur_id, seance_id) ?
++ Pour qu'un utilisateur ne réserve qu'une fois la même séance
+- Pour qu'une séance ne reçoive qu'une seule réservation au total
+- Pour qu'un utilisateur ne réserve qu'une séance dans sa vie
+- Pour que deux utilisateurs ne réservent jamais la même séance
+? C'est la contrainte « un utilisateur ne peut réserver qu'une fois une même séance » : elle porte sur le couple, pas sur chaque colonne.
+
+Q: Qu'est-ce que la suppression logique d'un film ?
++ Renseigner archive_le au lieu d'effacer la ligne, puis filtrer IS NULL
+- Effacer la ligne mais en conserver une copie dans un fichier JSON
+- Rendre la ligne invisible en modifiant les droits de l'utilisateur SQL
+- Déplacer la ligne dans une table temporaire vidée à chaque redémarrage
+? Le catalogue courant ne montre que WHERE archive_le IS NULL ; la ligne reste disponible pour l'audit et la restauration.
+
+Q: Quelle clé primaire convient à la table favoris (utilisateur_id, film_id) ? [cours]
++ Une clé composite (utilisateur_id, film_id) qui interdit les doublons
+- Une clé sur film_id seul, suffisante pour identifier chaque favori
+- Une clé sur utilisateur_id seul, car chacun n'a qu'un favori
+- Aucune clé : la table sert de simple journal sans contrainte
+? La paire est unique : un utilisateur ne peut pas ajouter deux fois le même film en favori.
+
+Q: Que vise la normalisation « sans dogmatisme » ? [cours]
++ Une source unique de vérité : chaque information est stockée une fois
+- Des tables qui ne contiennent jamais plus de deux colonnes
+- La suppression des clés étrangères pour simplifier les requêtes
+- La duplication volontaire des données pour éviter toute jointure
+? Le titre d'un film n'existe qu'une fois ; une clé étrangère suffit à exprimer l'appartenance. Une sur-normalisation peut nuire aux performances ou à la lisibilité.
+
+Q: Quel type SQL stocke une date seule, sans heure ? [cours]
++ DATE
+- DATETIME
+- TIMESTAMP
+- TEXT
+? DATE : date seule ; DATETIME : date et heure précises ; TIMESTAMP : horodatage géré automatiquement.
+
+Q: Comment AVG(note) traite-t-il les films dont la note vaut NULL ? [cours]
++ Il les ignore dans le calcul de la moyenne
+- Il les compte comme des zéros
+- Il les compte comme des dix
+- Il renvoie NULL dès qu'une note manque
+? Les agrégats ignorent les NULL (sauf COUNT(*)). Le SGBD fait le calcul, pas PHP.
+
+Q: Sans clause ORDER BY, dans quel ordre le SGBD retourne-t-il les lignes ? [cours]
++ Dans un ordre indéterminé, qui peut varier d'une exécution à l'autre
+- Toujours dans l'ordre d'insertion des lignes
+- Toujours selon la clé primaire croissante
+- Toujours par ordre alphabétique de la première colonne
+? L'ordre doit être demandé explicitement — surtout avant LIMIT/OFFSET pour paginer.
+
+# 15
+
+Q: Que signifie PDO ?
++ PHP Data Objects : une interface commune à plusieurs bases de données
+- PHP Database Operator : un langage de requêtes propre à PHP
+- Procedural Data Output : un format d'export des résultats
+- Persistent Driver Object : un pilote réservé à MySQL
+? PDO relie PHP au SGBD avec une API cohérente : un pilote par moteur (MySQL, PostgreSQL, SQLite…), la même interface.
+
+Q: Dans le DSN 'mysql:host=127.0.0.1;dbname=cineclub;charset=utf8mb4', que désigne dbname ? [cours]
++ La base à utiliser sur le serveur : cineclub
+- Le nom de l'utilisateur qui se connecte
+- Le pilote PDO chargé pour cette connexion
+- Le jeu de caractères utilisé pour l'échange
+? mysql: choisit le pilote, host= le serveur, dbname= la base, charset= le jeu de caractères.
+
+Q: Un DSN suffit-il à s'authentifier auprès du SGBD ? [cours]
++ Non : l'identifiant et le mot de passe se fournissent séparément
+- Oui : il contient tout ce qu'il faut pour se connecter
+- Oui, à condition d'ajouter charset=utf8mb4
+- Non, mais seulement pour les bases de type SQLite
+? Un DSN n'est pas un mot de passe : il décrit où et quoi, pas qui.
+
+Q: Que fait PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION ?
++ Toute erreur SQL lève une PDOException, sans vérification silencieuse
+- Les erreurs SQL sont masquées et la requête retourne simplement false
+- Les erreurs SQL sont affichées dans la page à titre informatif
+- Les erreurs SQL sont ignorées pour ne pas interrompre le script
+? Avec les exceptions, on ne peut pas oublier de tester un retour : l'échec devient visible et attrapable (try/catch).
+
+Q: Que fait PDO::FETCH_ASSOC comme mode par défaut ?
++ Il retourne les lignes en tableaux associatifs, sans doublons d'indices
+- Il retourne les lignes sous forme d'objets de la classe PDOStatement
+- Il retourne les lignes sous forme de listes indexées de 0 à n
+- Il retourne les lignes sous forme de chaînes JSON déjà encodées
+? On accède aux colonnes par leur nom : $film['titre'].
+
+Q: Que fait-on si la connexion à la base échoue ?
++ On journalise le détail, on répond 500 et on affiche un message neutre
+- On affiche le message de l'exception pour aider l'utilisateur
+- On réessaie la connexion en boucle jusqu'à ce que le serveur réponde
+- On affiche le DSN et le nom d'utilisateur pour faciliter le diagnostic
+? L'utilisateur ne doit jamais voir le DSN, l'identifiant ou le message SQL brut : le détail va dans error_log().
+
+Q: Où conserver les identifiants de la base de données ? [cours]
++ Dans des variables d'environnement lues avec getenv(), jamais dans le dépôt
+- Directement dans le code PHP, pour que l'application se lance partout
+- Dans un fichier de configuration versionné avec le reste du dépôt
+- Dans un cookie envoyé au navigateur pour une reconnexion automatique
+? Un fichier .env local ignoré par .gitignore peut aider pendant l'apprentissage ; le dépôt contient seulement un .env.example sans secret.
+
+Q: Quand utiliser query() plutôt que prepare() ?
++ Quand le SQL est entièrement fixe, sans aucune donnée externe
+- Quand la valeur provient d'un formulaire déjà validé côté client
+- Quand la requête retourne plusieurs lignes d'un seul coup
+- Quand la requête est trop courte pour justifier une préparation
+? Dès qu'une valeur varie ou vient de l'extérieur : prepare() + execute(). query() reste rare en pratique.
+
+Q: Que retourne fetch() quand aucune ligne ne correspond à la requête ?
+= false
+? fetch() retourne la ligne ou false. On teste === false, puis on répond 404 si la ressource est attendue.
+
+Q: Que retourne fetchAll() quand la requête ne trouve aucune ligne ?
++ Un tableau vide
+- false
+- null
+- Une PDOException
+? Une absence de résultat n'est pas une erreur : fetchAll() retourne [].
+
+Q: Pourquoi écrit-on (int) $pdo->query('SELECT COUNT(*) FROM films')->fetchColumn() ?
++ Selon le pilote, la valeur peut arriver en chaîne : on la convertit explicitement
+- Parce que fetchColumn() retourne toujours un tableau à un seul élément
+- Parce que COUNT(*) renvoie un nombre décimal qu'il faut arrondir
+- Parce que fetchColumn() ne sait lire que des colonnes de type texte
+? Convertir au bon type évite des surprises dans les comparaisons strictes (=== 0, par exemple).
+
+Q: Que se passe-t-il si $titre vaut « ' OR '1'='1 » dans une requête construite par concaténation ?
++ La condition devient toujours vraie : toutes les lignes sont retournées
+- La requête échoue toujours avec une erreur de syntaxe de PDO
+- La saisie est automatiquement échappée par le pilote MySQL
+- Seul le premier caractère de la saisie est pris en compte
+? C'est l'injection SQL : la donnée est devenue de la syntaxe. Avec une requête préparée, elle reste une valeur.
+
+Q: Pourquoi une requête préparée empêche-t-elle l'injection SQL ?
++ SQL et valeurs sont transmis séparément : la valeur reste une valeur
+- PDO supprime automatiquement toutes les apostrophes de la saisie
+- PDO convertit toute saisie en entier avant de l'envoyer au SGBD
+- Le SGBD refuse toute requête contenant un mot-clé comme OR ou DROP
+? « La requête préparée est une règle de construction, pas un correctif appliqué après coup. » À utiliser dès le premier jour.
+
+Q: Un placeholder (:colonne) peut-il remplacer un nom de colonne dans ORDER BY ? [cours]
++ Non : il représente une valeur, d'où la liste blanche pour les tris
+- Oui : PDO met automatiquement le nom de colonne entre guillemets
+- Oui, à condition de le lier avec bindValue et PDO::PARAM_STR
+- Oui, mais seulement pour les colonnes de type texte ou date
+? Pas de placeholder pour un nom de table, de colonne, ni pour ASC/DESC. On choisit dans une liste blanche : in_array($tri, ['titre', 'annee'], true) ? $tri : 'titre'.
+
+Q: Comment rechercher un fragment de titre avec LIKE de façon sûre ?
+|$stmt = $pdo->prepare('SELECT * FROM films WHERE titre LIKE :q');
++ Passer '%' . $fragment . '%' comme valeur de :q à execute
+- Écrire LIKE '%$fragment%' directement dans la chaîne SQL
+- Mettre les % dans le SQL et passer :q sans aucun joker
+- Échapper $fragment avec htmlspecialchars avant execute
+? Les jokers % font partie de la valeur, pas du SQL : la valeur reste paramétrée.
+
+Q: Dans une valeur de LIKE, que sont % et _ ? [cours]
++ Des jokers : % = zéro à plusieurs caractères, _ = un seul caractère
+- Des échappements qui neutralisent les apostrophes de la saisie
+- Des opérateurs logiques équivalents à AND et à OR
+- Des caractères réservés qui provoquent forcément une erreur SQL
+? Ce n'est pas une injection SQL, mais pour chercher un % ou un _ littéral il faut aussi les échapper pour LIKE.
+
+Q: Quelle formule donne l'OFFSET pour la page $page avec $limite lignes par page ?
++ ($page - 1) * $limite
+- $page * $limite
+- $page / $limite
+- ($page + 1) * $limite
+? Page 1 → offset 0 ; page 2 → offset $limite ; etc. On valide aussi $page (au moins 1) et on la ramène à la dernière page si elle dépasse.
+
+Q: Pourquoi utiliser bindValue(':limite', $limite, PDO::PARAM_INT) pour LIMIT ? [cours]
++ LIMIT et OFFSET attendent des entiers, surtout avec EMULATE_PREPARES désactivé
+- Pour que PDO chiffre la valeur de la limite pendant le transfert
+- Pour obliger PDO à utiliser une requête non préparée
+- Parce que execute() refuse tous les paramètres numériques
+? bindValue capture la valeur au moment de l'appel (bindParam lierait la variable par référence).
+
+Q: Qu'est-ce que le problème « N+1 » ? [cours]
++ Une requête pour la liste, puis une par ligne (101 pour 100 films)
+- Une seule requête qui retourne N lignes, relues N fois par PHP
+- N requêtes lancées en parallèle sur N connexions différentes
+- Une transaction regroupant N+1 instructions UPDATE successives
+? Chaque aller-retour coûte de la latence. Mesurer le nombre de requêtes montre immédiatement le problème.
+
+Q: Comment corriger un problème N+1 ?
++ Avec une jointure (ou une requête groupée) qui récupère tout d'un coup
+- En ajoutant un LIMIT sur chaque requête individuelle de la boucle
+- En activant EMULATE_PREPARES pour que PDO regroupe les requêtes
+- En remplaçant fetch() par fetchAll() à l'intérieur de la boucle
+? SELECT f.titre, g.nom FROM films f JOIN genres g ON g.id = f.genre_id : une requête au lieu de N+1.
+
+Q: Une fiche film est demandée avec l'identifiant « abc » puis « 9999 » (inexistant). Quels statuts ?
++ 400 pour « abc » (mal formé), 404 pour 9999 (valide mais absent)
+- 404 pour « abc », 400 pour 9999 (valide mais absent)
+- 500 pour « abc », 404 pour 9999 (valide mais absent)
+- 200 pour les deux, avec un message d'erreur dans la page
+? 400 : la requête elle-même est mal formée. 404 : la requête est correcte mais la ressource n'existe pas.
+
+Q: Les requêtes préparées protègent-elles contre le XSS ? [cours]
++ Non : elles protègent le SQL ; l'affichage HTML exige htmlspecialchars
+- Oui : PDO échappe aussi le HTML des valeurs qu'il retourne
+- Oui, uniquement quand FETCH_ASSOC est activé sur la connexion
+- Non, mais seulement lorsque la requête contient un LIKE
+? Deux contextes, deux protections : requête préparée pour le SQL, échappement pour le HTML.
+
+Q: Pourquoi parcourir un gros résultat avec un générateur (yield) plutôt qu'avec fetchAll ?
++ Une seule ligne est en mémoire à la fois, au lieu du résultat entier
+- Le générateur exécute la requête plus vite grâce à un index caché
+- Le générateur évite d'avoir à ouvrir une connexion PDO
+- Le générateur trie automatiquement les lignes avant de les rendre
+? function parcourir(PDO $pdo): Generator { $stmt = $pdo->query(...); while ($l = $stmt->fetch()) { yield $l; } }
+
+Q: Pourquoi tester d'abord une requête dans un client SQL (DBeaver, phpMyAdmin) ? [cours]
++ Savoir si le problème vient du SQL ou du PHP avant d'intégrer la requête
+- Éviter d'avoir à valider les entrées de l'utilisateur ensuite
+- Obtenir automatiquement le code PHP correspondant à la requête
+- Contourner les contraintes d'intégrité de la base de données
+? Si elle échoue dans le client SQL, le problème est dans la requête, pas dans PHP. Ne jamais intégrer une requête non testée.
+
+Q: Quelles options sont recommandées lors de la création de la connexion PDO ?
++ ATTR_ERRMODE => ERRMODE_EXCEPTION
++ ATTR_DEFAULT_FETCH_MODE => FETCH_ASSOC
++ ATTR_EMULATE_PREPARES => false
+- ATTR_SHOW_PASSWORD => true
+? Exceptions, tableaux associatifs et vraies préparations côté SGBD. ATTR_SHOW_PASSWORD n'existe pas — et afficher un mot de passe serait absurde.
+
+Q: Quelle est la différence entre une connexion SQL et une session utilisateur ? [cours]
++ La connexion est technique et courte ; la session est applicative et dure entre requêtes
+- Les deux sont identiques et se ferment en même temps
+- La session SQL contient les données, la connexion les chiffre
+- La connexion SQL dure tant que l'utilisateur ne se déconnecte pas
+? Chaque requête HTTP ouvre en général une nouvelle connexion PDO ; la base, elle, conserve les données.
+
+# 16
+
+Q: Quelles requêtes SQL correspondent respectivement à Create, Read, Update, Delete ?
++ INSERT, SELECT, UPDATE, DELETE
+- SELECT, INSERT, DELETE, UPDATE
+- INSERT, UPDATE, SELECT, DELETE
+- CREATE, SELECT, ALTER, DROP
+? CRUD : Create = INSERT INTO, Read = SELECT, Update = UPDATE … WHERE, Delete = DELETE … WHERE (ou archivage).
+
+Q: Que risque-t-on avec « UPDATE films SET titre = :titre » sans clause WHERE ?
++ Modifier le titre de toutes les lignes de la table
+- Rien : PDO ajoute automatiquement un WHERE id = …
+- Une erreur de syntaxe empêche l'exécution de la requête
+- Seule la première ligne de la table est modifiée
+? Un UPDATE ou un DELETE sans WHERE touche toute la table. Toujours WHERE id = :id.
+
+Q: Pourquoi ne jamais écrire $stmt->execute($_POST) ?
++ Clés et valeurs viennent du client : on construit un tableau validé explicitement
+- execute() n'accepte que des tableaux indexés numériquement
+- $_POST contient toujours des valeurs de type entier
+- $_POST est vidé automatiquement par PDO après l'exécution
+? On construit $filmValide à partir de champs normalisés et validés, un par un.
+
+Q: Que retourne $pdo->lastInsertId() ?
++ L'identifiant généré par AUTO_INCREMENT lors du dernier INSERT
+- Le nombre de lignes insérées par la dernière requête
+- L'identifiant de la dernière ligne lue par fetch()
+- Le plus grand identifiant présent dans la table
+? On le convertit en (int) puis on redirige vers la fiche créée (PRG).
+
+Q: Un titre « L'Armée des ombres » contient une apostrophe. Que faut-il faire de particulier pour l'INSERT ?
++ Rien : avec une requête préparée, la valeur est transmise séparément du SQL
+- L'échapper à la main avec addslashes avant l'appel à execute
+- Remplacer chaque apostrophe par deux apostrophes dans PHP
+- Refuser le titre, car l'apostrophe est interdite en SQL
+? C'est un bénéfice concret des requêtes préparées : plus aucun échappement manuel.
+
+Q: Quels contrôles précèdent l'exécution d'un DELETE ?
++ La validité de l'identifiant
++ L'autorisation de l'utilisateur
++ Le jeton CSRF
+- La mise en cache de la page
+- La compression de la réponse
+? Identité, existence de la ligne, autorisation et CSRF viennent avant le DELETE. Une requête courte peut produire un effet irréversible.
+
+Q: Pourquoi archiver une ligne plutôt que la détruire ? [cours]
++ Audit et restauration possibles, au prix d'un filtre sur chaque lecture
+- La base reste plus petite car les lignes archivées sont compressées
+- Les clés étrangères ne s'appliquent plus aux lignes archivées
+- DELETE est interdit par PDO dès que la table a une clé primaire
+? L'archivage (UPDATE … SET archive_le = CURRENT_TIMESTAMP) conserve les données ; en contrepartie toutes les requêtes doivent filtrer WHERE archive_le IS NULL.
+
+Q: Que peut valoir rowCount() après un UPDATE qui ne change aucune valeur ? [cours]
++ 0 : cela ne prouve pas que la ligne n'existe pas
+- 1, tant que la clause WHERE a trouvé la ligne
+- Le nombre total de lignes de la table
+- Une exception est lancée pour signaler l'absence de changement
+? Selon le SGBD, rowCount compte les lignes modifiées. Pour prouver l'absence, on lit la ligne avec fetch() avant.
+
+Q: Quelle défense arrête une suppression lancée par un membre non administrateur ?
++ L'autorisation vérifiée côté serveur avant l'archivage
+- L'échappement HTML appliqué aux champs du formulaire
+- Le typage strict déclaré en haut du fichier PHP
+- La requête préparée utilisée pour l'UPDATE
+? Chaque tentative est arrêtée par une défense différente : préparée → injection SQL ; échappement → XSS ; CSRF → requête forgée ; autorisation → accès non autorisé.
+
+Q: Quelle défense arrête un genre_id falsifié envoyé dans le formulaire ?
++ La vérification du genre en base, doublée par la clé étrangère
+- L'échappement HTML du genre au moment de l'affichage
+- Le cookie de session marqué HttpOnly et SameSite
+- Le message flash affiché après la redirection
+? La valeur est validée contre la liste issue de la base ; si elle passe, la clé étrangère garde la dernière main.
+
+Q: Le repository de films peut-il appeler header('Location: …') ?
++ Non : il ne fait que du SQL, la redirection relève de la page appelante
+- Oui : c'est lui qui connaît la fin de l'opération en base
+- Oui, mais seulement après un INSERT, jamais après un UPDATE
+- Non, sauf quand il est appelé depuis une action de suppression
+? Le repository ne lit aucune superglobale, ne redirige pas et ne produit pas de HTML.
+
+Q: Comment détecter une modification concurrente avec une colonne de version ?
++ UPDATE … AND version = :v ; rowCount() = 0 signifie qu'un autre est passé avant
+- Le UPDATE verrouille la table entière jusqu'à la fin de la requête
+- Le UPDATE refuse toute modification faite par deux utilisateurs
+- Le UPDATE duplique la ligne pour conserver les deux versions
+? SET version = version + 1 WHERE id = :id AND version = :version : si la version a changé entre la lecture et l'écriture, aucune ligne n'est modifiée.
+
+Q: Dans quel ordre se déroule le flux complet d'une création ?
++ Afficher, lire/normaliser, valider, autoriser (CSRF), insérer
+- Insérer, valider, afficher le formulaire, rediriger, autoriser
+- Autoriser, rediriger, lire, insérer, afficher le formulaire vide
+- Valider, insérer, normaliser, rediriger, vérifier le jeton CSRF
+? GET affiche le formulaire ; POST lit, normalise, valide, autorise ; puis INSERT et redirection vers la fiche créée.
+
+Q: Pourquoi les contraintes de la base restent-elles utiles quand PHP a déjà validé ? [cours]
++ PHP donne le bon message, la base garantit l'intégrité : deux niveaux
+- La validation PHP est facultative dès que la base a des contraintes
+- Les contraintes servent seulement à documenter le schéma de la base
+- PHP désactive les contraintes de la base pendant l'insertion
+? NOT NULL, UNIQUE, clé étrangère, CHECK : le SGBD est le dernier rempart de l'intégrité.
+
+Q: Quel code SQLSTATE signale une violation de contrainte d'intégrité avec MySQL ? [cours]
+= 23000
+? SQLSTATE 23000 : violation d'intégrité (doublon UNIQUE, clé étrangère, NOT NULL…).
+
+# 17
+
+Q: Que signifie l'acronyme ACID ?
++ Atomicité, Cohérence, Isolation, Durabilité
+- Authentification, Contrôle, Identité, Droits
+- Accès, Chiffrement, Intégrité, Disponibilité
+- Atomicité, Concurrence, Index, Données
+? Les quatre propriétés d'une transaction fiable.
+
+Q: Que garantit l'atomicité d'une transaction ?
++ Tout réussit ensemble ou rien n'est conservé
+- Les opérations s'exécutent plus vite que séparément
+- Chaque opération est chiffrée avant d'être écrite
+- Les opérations s'exécutent dans un ordre aléatoire
+? Pas d'état intermédiaire visible : soit la réservation et le décrément existent tous les deux, soit aucun.
+
+Q: Pourquoi le schéma « lire les places, décider en PHP, puis écrire » est-il dangereux ?
++ Deux scripts peuvent lire « 1 place » avant que l'un des deux n'écrive
+- La lecture verrouille la table et bloque tous les autres scripts
+- L'écriture est toujours exécutée avant la lecture par le SGBD
+- Le SGBD interdit de lire une ligne qu'on s'apprête à modifier
+? C'est la condition de course : le contrôle en PHP arrive « trop tôt », les deux réservations sont acceptées pour une seule place.
+
+Q: Que garantit la clause « WHERE id = :id AND places_restantes > 0 » dans l'UPDATE ?
++ Le test et la modification forment une seule opération atomique
+- La requête ne s'exécute que si PHP a déjà lu la ligne
+- La ligne est verrouillée pour toute la durée du script
+- Le SGBD annule automatiquement les requêtes en double
+? La base décide au moment de l'écriture ; rowCount() indique si une place a réellement été consommée.
+
+Q: Après cet UPDATE conditionnel, rowCount() vaut 0. Que doit-on faire ?
++ Refuser la réservation : aucune place n'a été décrémentée
+- Réessayer immédiatement jusqu'à ce que rowCount() vaille 1
+- Créer quand même la réservation, puis corriger le compteur
+- Ignorer ce cas : c'est une situation impossible
+? On lève une exception métier ; le rollBack annule l'éventuel travail déjà fait dans la transaction.
+
+Q: À quoi sert rollBack() ?
++ À annuler toutes les écritures effectuées depuis beginTransaction()
+- À valider définitivement toutes les écritures de la transaction
+- À relancer automatiquement la transaction depuis le début
+- À fermer la connexion à la base de données
+? commit() valide, rollBack() annule. En cas d'exception : rollBack puis throw pour informer la couche supérieure.
+
+Q: Pourquoi relancer l'exception (throw) après le rollBack ?
++ Pour que la couche supérieure sache que l'opération a échoué
+- Pour que PDO réessaie automatiquement la transaction
+- Pour que le commit s'exécute malgré l'erreur
+- Pour effacer le message d'erreur du journal
+? Après annulation, l'échec doit remonter : sinon l'utilisateur croirait que sa réservation a réussi.
+
+Q: Le doublon de réservation provoque une erreur après le décrément des places. Que devient le compteur ?
++ Il est restauré : le rollBack annule aussi la mise à jour
+- Il reste décrémenté, car l'UPDATE a déjà été validé
+- Il est incrémenté deux fois par le SGBD
+- Il passe à NULL tant que l'erreur n'est pas corrigée
+? C'est la preuve de l'atomicité : la contrainte UNIQUE a refusé l'INSERT, la transaction entière est annulée.
+
+Q: Que fait SELECT … FOR UPDATE ?
++ Il verrouille la ligne lue jusqu'à la fin de la transaction
+- Il met à jour la ligne lue avec une valeur par défaut
+- Il lit la ligne sans passer par la clé primaire
+- Il copie la ligne dans une table de sauvegarde
+? Les autres transactions attendent. Fonctionne, mais bloque ; la mise à jour conditionnelle est souvent plus simple.
+
+Q: Une transaction suffit-elle à elle seule à corriger l'algorithme « lire, décider, écrire » ?
++ Non : la décision doit être prise par la base (UPDATE conditionnel, verrou, contrainte)
+- Oui : toute transaction rend l'algorithme correct
+- Oui, à condition d'ajouter un usleep() dans le script
+- Non, sauf si on désactive toutes les contraintes de la base
+? Une transaction protège un groupe d'écritures ; elle ne remplace pas une mise à jour atomique.
+
+Q: Quel est le rôle de CHECK (places_restantes >= 0) ?
++ Dernier rempart : la base refuse un état négatif
+- Remplacer le contrôle fait dans l'UPDATE conditionnel
+- Décrémenter automatiquement les places à chaque réservation
+- Afficher un message d'erreur lisible à l'utilisateur
+? Défense en profondeur : UPDATE conditionnel, rowCount, transaction, puis contrainte CHECK en dernier recours.
+
+Q: Dans quels cas utilise-t-on une transaction ?
++ Plusieurs écritures liées forment une seule opération métier
++ Un état intermédiaire serait incohérent
++ L'opération doit pouvoir être annulée en bloc
+- Une simple lecture d'une seule ligne
+? Une lecture simple n'a pas besoin de transaction explicite ; les transactions ont un coût.
+
+Q: Que signifie « invariant » quand on parle de transactions ?
++ Une règle qui doit toujours rester vraie
+- Une variable dont la valeur ne change jamais
+- Une requête SQL exécutée à chaque démarrage
+- Un jeton unique généré à chaque connexion
+? Les états intermédiaires invalides (place décrémentée sans réservation, ou l'inverse) violent l'invariant.
+
+Q: Que peut contenir le journal de la transaction (début, commit, rollback) ?
++ L'étape, l'identifiant de séance et d'utilisateur
+- Le mot de passe de l'utilisateur, pour reproduire le problème
+- Le DSN complet de la base, avec ses identifiants
+- Le contenu complet de la session PHP
+? error_log('[reservation] ROLLBACK seance=3 user=7') suffit au diagnostic.
+
+# 18
+
+Q: Quelle est la différence entre hachage et chiffrement des mots de passe ? [cours]
++ Le hachage n'est pas fait pour être inversé ; le chiffrement se déchiffre avec une clé
+- Le hachage est réversible avec une clé, le chiffrement ne l'est pas
+- Les deux sont réversibles, mais le hachage est plus rapide
+- Il n'y a aucune différence : ce sont deux noms d'une même technique
+? On compare un mot de passe à son condensat (password_verify) sans jamais le retrouver.
+
+Q: Que donnent deux appels à password_hash() avec le même mot de passe ? [cours]
++ Deux chaînes différentes, car un sel aléatoire est inclus à chaque appel
+- La même chaîne, car l'algorithme est déterministe
+- Une chaîne vide au deuxième appel, car le sel est déjà utilisé
+- Une exception signalant que le mot de passe est déjà haché
+? Le sel est géré automatiquement et inclus dans la chaîne résultante : pas besoin de le stocker à part.
+
+Q: Pourquoi password_hash plutôt que md5 ou sha1 pour stocker un mot de passe ?
++ md5 et sha1 sont rapides à calculer : trop faciles à attaquer par force brute
+- md5 et sha1 ne produisent pas de chaîne utilisable en base
+- password_hash produit toujours des chaînes plus courtes
+- md5 et sha1 sont supprimées de PHP 8
+? password_hash utilise un algorithme adapté (lent, salé, évolutif) via PASSWORD_DEFAULT. Ne jamais inventer son propre algorithme.
+
+Q: À quoi sert password_verify() ?
++ À comparer un mot de passe en clair avec le hash stocké
+- À recalculer le hash puis le comparer à la main avec ===
+- À déchiffrer le hash pour retrouver le mot de passe
+- À vérifier que le mot de passe respecte la politique de longueur
+? Elle extrait le sel du hash et recalcule. Ne jamais comparer manuellement.
+
+Q: Pourquoi afficher le même message pour un email inconnu et un mot de passe faux ?
++ Pour ne pas révéler quels comptes existent (énumération de comptes)
+- Pour économiser une requête SQL lors de chaque tentative
+- Parce que PHP ne distingue pas ces deux cas
+- Pour que l'utilisateur oublie moins souvent son mot de passe
+? « Identifiant ou mot de passe incorrect. » Dire « email inconnu » aiderait un attaquant à lister les comptes valides.
+
+Q: À quoi sert password_needs_rehash() ? [cours]
++ À détecter un hash obsolète, pour le renouveler après une connexion réussie
+- À vérifier que l'utilisateur a bien saisi son mot de passe
+- À hacher une seconde fois le mot de passe pour le renforcer
+- À migrer toute la base vers un nouvel algorithme en une fois
+? Quand PHP change d'algorithme par défaut ou de coût, on renouvelle progressivement les condensats, sans migration de masse.
+
+Q: Quelle est la différence entre les statuts 401 et 403 ?
++ 401 : identité manquante ; 403 : identifié mais accès interdit
+- 401 : accès interdit ; 403 : identité manquante
+- 401 : ressource absente ; 403 : requête mal formée
+- 401 : erreur serveur ; 403 : erreur du navigateur
+? Authentification (qui ?) → 401. Autorisation (as-tu le droit ?) → 403. Un jeton CSRF invalide donne aussi un 403.
+
+Q: Un membre peut consulter la réservation d'un autre en changeant ?id= dans l'URL. Comment s'appelle ce défaut et quelle correction ?
++ Accès horizontal (IDOR) : filtrer par propriétaire, WHERE id = :id AND utilisateur_id = :moi
+- Élévation de rôle : relire le rôle de l'utilisateur dans le cookie
+- Injection SQL : échapper l'identifiant avec htmlspecialchars
+- Fixation de session : régénérer l'identifiant à chaque page
+? L'identifiant seul ne suffit jamais à autoriser : on vérifie que la ressource appartient à l'utilisateur connecté.
+
+Q: Pourquoi relire le rôle en base à chaque contrôle sensible ?
++ Modifier un cookie, l'URL ou un champ caché ne doit accorder aucun droit
+- Pour économiser de la mémoire dans la session
+- Parce que la session expire à chaque requête
+- Parce que le rôle change à chaque connexion
+? La session ne contient que l'identifiant utilisateur ; le rôle est une donnée serveur, relue depuis la base.
+
+Q: Quelle paire « menace → défense » est correcte ?
++ Requête forgée → jeton CSRF vérifié avec hash_equals
+- Injection SQL → htmlspecialchars appliqué à la valeur
+- XSS → requête préparée utilisée dans le repository
+- Fuite de mots de passe → contrôle du jeton CSRF
+? Défense en profondeur : valider les entrées, autoriser, CSRF, requêtes préparées, échapper la sortie, hacher les secrets. Chaque mécanisme répond à une menace différente.
+
+Q: Quelle notion correspond à « le serveur vérifie la preuve : le mot de passe comparé à son condensat » ? [cours]
++ L'authentification
+- L'identification
+- L'autorisation
+- La session
+? Identification : « je prétends être… ». Authentification : preuve. Session : mémoire. Autorisation : droits. Ne confondez jamais « connecté » et « autorisé à modifier cette ressource ».
+
+Q: Quel est l'intérêt de limiter les tentatives de connexion ?
++ Ralentir les attaques par force brute (délai progressif, blocage temporaire)
+- Empêcher l'injection SQL dans le formulaire de connexion
+- Éviter la fixation de session après connexion
+- Chiffrer le mot de passe pendant sa saisie
+? Un compteur d'échecs par compte ou par IP, avec journalisation sans mot de passe.
+
+Q: Que penser d'une politique « 8 caractères, une majuscule, un chiffre, un symbole » ?
++ L'argument solide est la longueur ; l'accumulation de règles arbitraires est peu utile
+- Elle est indispensable pour que password_hash fonctionne
+- Elle rend le mot de passe impossible à deviner
+- Elle remplace le hachage du mot de passe
+? Mieux vaut exiger une longueur suffisante (par exemple 12 caractères au moins) et une confirmation identique, avec une politique argumentée plutôt qu'une pile de règles.
+
+Q: Que ne faut-il jamais écrire dans un journal ?
++ Un mot de passe, même dans un message d'erreur
+- L'identifiant technique de l'utilisateur
+- L'heure de la tentative de connexion
+- Le code de statut renvoyé
+? Journaliser les anomalies (horodatage, identifiant technique), jamais le mot de passe ni le jeton.

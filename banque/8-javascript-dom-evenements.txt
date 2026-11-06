@@ -1,0 +1,418 @@
+// Banque de questions — chapitre 29 : JavaScript, le DOM et les événements
+// Questions inspirées du cours « JavaScript Vanilla — Le DOM et les événements » (T. Ferut, CC BY-SA 4.0).
+
+# 29
+
+Q: Quelle différence y a-t-il entre le code HTML source et le DOM ? [cours]
++ Le DOM est l'arbre construit en mémoire, qui peut différer du code source
+- Le DOM est le fichier HTML enregistré sur le disque, avant son envoi au navigateur
+- Le DOM est une copie du fichier CSS appliquée aux balises de la page affichée
+- Le DOM remplace le HTML dès qu'une page contient un script JavaScript chargé
+? Le navigateur représente le document sous forme d'un arbre de nœuds. L'inspecteur (F12) montre l'arbre DOM courant, pas uniquement le fichier source.
+
+Q: Le DOM fait-il partie de la syntaxe du langage JavaScript ? [cours]
++ Non : c'est une API standard du Web, fournie par le navigateur
+- Oui : document et window sont des mots réservés du langage
+- Oui : c'est l'un des types primitifs définis par ECMAScript
+- Non : c'est une bibliothèque à installer avec npm avant usage
+? Les méthodes du DOM ne font pas partie de la seule syntaxe de JavaScript. Dans Node.js, window et document ne sont pas fournis nativement : le DOM est propre à l'environnement navigateur.
+
+Q: Que vaut window.document === document dans un navigateur ? [cours]
++ true : window est l'objet global et référence document
+- false : window et document sont deux arbres distincts
+- undefined : document n'est pas une propriété de window
+- Une TypeError : on ne compare pas deux objets avec ===
+? window est l'objet global principal du contexte navigateur et expose de nombreuses API, dont document : le point d'entrée vers la page (sélection, création de nœuds, écoute d'événements).
+
+Q: Pourquoi document.querySelector("#titre") peut-il renvoyer null dans un script placé dans le head ? [cours]
++ Le script s'exécute avant que le navigateur ait analysé la balise cible
+- Le sélecteur #titre est interdit en dehors du body de la page
+- querySelector ne fonctionne qu'après un clic de l'utilisateur
+- Le navigateur masque les éléments tant que le CSS n'est pas chargé
+? Sans defer, un script du head peut s'exécuter avant l'analyse du HTML qui suit : l'élément n'existe pas encore. Avec defer, le script s'exécute après l'analyse du document.
+
+Q: Que signale l'événement DOMContentLoaded ? [cours]
++ Que le document HTML est analysé, sans attendre toutes les images
+- Que toutes les images et feuilles de style sont entièrement chargées
+- Que l'utilisateur a cliqué pour la première fois sur la page
+- Que le serveur a fini d'envoyer la réponse HTTP complète
+? Un script classique avec defer s'exécute après l'analyse du document, avant DOMContentLoaded. L'événement load, lui, attend aussi les ressources comme les images.
+
+Q: Quels scripts s'exécutent après l'analyse du HTML ? [cours]
++ <script src="a.js" defer></script>
++ <script type="module" src="b.js"></script>
+- <script src="c.js"></script> placé dans le head
+- <script>console.log(1)</script> placé dans le head
+? defer retarde un script classique externe ; un script type="module" est différé par défaut. Un script classique sans defer dans le head s'exécute dès qu'il est rencontré.
+
+Q: Quelle règle distingue les attributs id et class ? [cours]
++ id cible un élément unique ; class permet de regrouper plusieurs éléments
+- id sert aux styles CSS ; class sert uniquement au JavaScript
+- id peut être répété sur plusieurs éléments ; class doit être unique
+- id et class sont deux écritures équivalentes du même attribut
+? id identifie un élément (getElementById, #id) ; class regroupe des éléments (.classe, classList).
+
+Q: Que renvoie document.getElementById("absent") quand aucun élément n'a cet id ? [cours]
++ null
+- undefined
+- Une NodeList vide
+- Une exception
+? Si la sélection échoue, getElementById renvoie null : il faut vérifier avant de modifier une propriété.
+
+Q: Que signifie l'erreur « Cannot set properties of null » après element.textContent = "OK" ? [cours]
++ element vaut null : la sélection n'a trouvé aucun élément
+- textContent est une propriété en lecture seule
+- Le texte contient des caractères que le navigateur refuse
+- Le script s'exécute avant que la console soit ouverte
+? L'id peut ne pas exister, avoir changé, ou être cherché trop tôt. Diagnostic : rechercher l'id exact dans l'inspecteur et vérifier le chargement du script (defer).
+
+Q: Que renvoie document.querySelectorAll(".info") quand aucun élément ne correspond ? [cours]
++ Une NodeList vide, jamais null
+- null, comme querySelector
+- undefined
+- Une exception de type SelectorError
+? querySelector() renvoie le premier élément ou null ; querySelectorAll() renvoie toujours une NodeList, éventuellement vide.
+
+Q: Que sélectionne document.querySelectorAll(".ligne .forme") ? [cours]
++ Les éléments de classe forme situés à l'intérieur d'un élément de classe ligne
+- Les éléments qui portent à la fois la classe ligne et la classe forme
+- Les éléments de classe ligne ou de classe forme, sans distinction
+- Uniquement les enfants directs de l'élément de classe ligne
+? L'espace désigne un descendant. Pour exiger les deux classes sur le même élément, on écrit .ligne.forme ; pour un enfant direct, .ligne > .forme.
+
+Q: Quel sélecteur désigne les éléments dont l'attribut data-row vaut 2 ? [cours]
++ [data-row='2']
+- #data-row-2
+- .data-row=2
+- data-row:2
+? Les sélecteurs d'attribut s'écrivent entre crochets, comme en CSS : [data-row='2'], ou .forme[data-row="2"] pour se limiter aux éléments de classe forme.
+
+Q: Quelle méthode renvoie une collection « vivante », mise à jour quand les classes changent ? [cours]
++ document.getElementsByClassName("active")
+- document.querySelectorAll(".active")
+- document.querySelector(".active")
+- document.getElementById("active")
+? getElementsByClassName et getElementsByTagName renvoient une HTMLCollection vivante ; querySelectorAll renvoie une NodeList statique ; getElementById renvoie un seul élément ou null.
+
+Q: Pourquoi document.getElementsByClassName("x").map(f) échoue-t-il ? [cours]
++ Ce n'est pas un tableau : map n'existe pas, il faut Array.from
+- map est réservé aux tableaux de nombres uniquement
+- getElementsByClassName renvoie toujours un seul élément
+- map ne s'utilise que sur des NodeList statiques
+? Les collections DOM sont « array-like » (length, indices) sans être des Array. Array.from(collection) en crée un vrai tableau ; for…of fonctionne aussi, et NodeList possède forEach.
+
+Q: Pourquoi parcourir Array.from(actifs) quand on retire la classe active à chaque élément ? [cours]
+|const actifs = document.getElementsByClassName("active");
+|for (const element of Array.from(actifs)) {
+|    element.classList.remove("active");
+|}
++ La collection vivante change en cours de boucle ; la copie est stable
+- Array.from accélère la boucle en désactivant les écouteurs
+- classList.remove ne fonctionne que sur des tableaux
+- La collection vivante ne contient jamais d'éléments actifs
+? Retirer la classe vide immédiatement la HTMLCollection : une boucle indexée sauterait des éléments. Array.from copie les références à l'instant de l'appel ; querySelectorAll(".active") donne aussi une liste statique.
+
+Q: Que peut faire querySelector() si le sélecteur CSS fourni est invalide ? [cours]
++ Lever une exception (SyntaxError) au lieu de renvoyer null
+- Renvoyer silencieusement le premier élément du document
+- Renvoyer une NodeList vide
+- Ignorer le sélecteur et sélectionner le body
+? null signifie « aucun résultat » pour un sélecteur valide ; un sélecteur mal formé lève une exception. D'où la prudence avec des sélecteurs construits à partir d'une saisie.
+
+Q: Que produit titre.textContent = "<b>Important</b>" ? [cours]
++ Le texte littéral <b>Important</b> s'affiche, balises visibles
+- Le mot Important s'affiche en gras dans le titre
+- Une erreur de syntaxe : les chevrons sont interdits
+- Le titre est vidé car le HTML est filtré par le navigateur
+? textContent écrit du texte littéral, sans interpréter une chaîne comme des balises HTML. innerHTML interprète la chaîne : à éviter avec une saisie ou une donnée distante.
+
+Q: Pourquoi éviter zone.innerHTML = saisieUtilisateur ? [cours]
++ Une donnée non fiable est interprétée comme du HTML : faille XSS
+- innerHTML est plus lent que textContent sur toutes les pages
+- innerHTML refuse les chaînes contenant des caractères accentués
+- innerHTML supprime le CSS appliqué à l'élément visé
+? Si la saisie contient une balise ou un script, le navigateur l'interprète. Pour afficher une saisie ou une donnée distante comme texte, on privilégie textContent.
+
+Q: Que se passe-t-il après info.remove() puis un rechargement de la page ? [cours]
++ Le DOM est reconstruit depuis le HTML initial : l'élément réapparaît
+- L'élément reste supprimé, car remove() modifie le fichier HTML
+- L'élément reste supprimé, car le navigateur mémorise le DOM
+- Le navigateur affiche une erreur car l'élément n'existe plus
+? remove() retire le nœud du document courant, sans effacer le code source ni réécrire le fichier sur le disque. Un rechargement repart du HTML initial et des scripts.
+
+Q: Après const li = document.createElement("li"), l'élément est-il visible dans la page ? [cours]
++ Non : il n'est inséré qu'à l'appel de append ou équivalent
+- Oui : createElement ajoute l'élément à la fin du body
+- Oui, mais seulement quand on lui donne un attribut id
+- Non : createElement ne crée qu'une copie du HTML source
+? createElement crée un nouvel objet Element, pas encore inséré dans la page. liste.append(li) l'ajoute à la fin de la liste.
+
+Q: Que produit ce code si saisie vaut "<b>Tomates</b>" ? [cours]
+|const li = document.createElement("li");
+|li.textContent = saisie;
+|liste.append(li);
++ Un <li> qui affiche le texte <b>Tomates</b>, sans mise en gras
+- Un <li> dont le contenu est en gras, grâce à la balise <b>
+- Une erreur : append refuse un élément contenant des chevrons
+- Un <li> vide, car textContent filtre les balises
+? textContent traite la chaîne comme du texte, même si elle contient des balises : c'est la manière sûre d'insérer une saisie utilisateur.
+
+Q: Que fait zone.classList.toggle("active") ? [cours]
++ Il ajoute la classe si absente, la retire sinon, et renvoie le nouvel état
+- Il remplace toutes les classes de l'élément par la seule classe active
+- Il renvoie true si la classe est présente, sans la modifier
+- Il retire la classe active de tous les éléments de la page
+? add / remove ajoutent et retirent une classe sans toucher aux autres ; contains renvoie un booléen ; toggle inverse la présence et renvoie l'état obtenu.
+
+Q: Que fait forme.classList.toggle("active", false) ? [cours]
++ Il retire la classe active, que l'élément la porte ou non
+- Il inverse la classe, puis renvoie false
+- Il ajoute la classe seulement si elle est déjà présente
+- Il lève une erreur : toggle n'accepte qu'un seul argument
+? Avec le second argument (force), toggle("active", true) ajoute et toggle("active", false) retire : on impose un état au lieu de l'inverser.
+
+Q: Pourquoi préférer classList à className pour changer l'état d'un élément ? [cours]
++ On ajoute ou retire une classe sans réécrire la chaîne des autres classes
+- className ne peut contenir qu'une seule classe à la fois
+- classList est la seule propriété qui accepte des chaînes de caractères
+- className est supprimé des navigateurs récents
+? className est la chaîne complète des classes ; classList offre add, remove, contains et toggle sur chaque classe.
+
+Q: Quelle répartition des rôles le cours recommande-t-il pour un état visuel « actif » ? [cours]
++ Le CSS décrit l'apparence de .forme.active ; JavaScript ajoute ou retire la classe
+- JavaScript écrit les couleurs dans element.style à chaque clic reçu
+- Le CSS lit l'état du clavier ; JavaScript ne fait que charger la feuille de style
+- Chaque gestionnaire de clic redéfinit toutes les propriétés de l'élément
+? Éviter de disperser couleurs et propriétés style dans des dizaines de gestionnaires : une règle CSS réutilisable et un simple basculement de classe.
+
+Q: Que renvoie element.getAttribute("title") quand l'attribut n'existe pas dans le HTML ? [cours]
++ null
+- Une chaîne vide
+- undefined
+- La valeur de la propriété title du parent
+? getAttribute renvoie la valeur d'un attribut présent dans le HTML, ou null s'il est absent. Une propriété de l'objet DOM et un attribut HTML sont liés, mais pas toujours interchangeables.
+
+Q: Que renvoie forme.closest(".ligne") ? [cours]
++ L'élément ou son plus proche ancêtre correspondant, sinon null
+- Le premier enfant de forme qui porte la classe ligne
+- Tous les éléments de classe ligne présents dans le document
+- Le frère suivant de forme, s'il porte la classe ligne
+? closest remonte l'élément puis ses ancêtres jusqu'au premier qui correspond au sélecteur. Utile pour retrouver, depuis une forme cliquée, le conteneur de sa ligne.
+
+Q: Que vaut typeof bouton.dataset.row pour <button data-row="2"> ? [cours]
++ "string" : les attributs data-* sont lus comme du texte
+- "number" : la valeur 2 est convertie automatiquement
+- "object" : dataset.row renvoie un nœud du DOM
+- "undefined" : il faut écrire dataset["data-row"]
+? dataset donne accès aux attributs data-* (data-row devient dataset.row). Les valeurs sont des chaînes : on convertit avec Number() pour comparer à un nombre.
+
+Q: Pourquoi aligner aria-pressed sur la classe active d'un bouton basculant ? [cours]
++ L'état est annoncé aux technologies d'assistance, pas seulement par la couleur
+- aria-pressed applique automatiquement le style CSS de la classe active
+- aria-pressed empêche le bouton d'être cliqué plus d'une fois
+- Sans aria-pressed, le navigateur ignore les événements click
+? Un bouton accessible expose son état d'activation : aria-pressed est mis à jour en même temps que la classe, par exemple avec setAttribute("aria-pressed", String(actif)). On ne transmet pas l'information seulement par la couleur.
+
+Q: À quoi sert l'attribut for d'un <label> ? [cours]
++ Il relie le libellé au champ dont l'id a la même valeur
+- Il indique quel formulaire reçoit les données envoyées
+- Il définit la valeur par défaut affichée dans le champ
+- Il active la validation automatique du champ associé
+? for doit contenir l'id du champ : cliquer sur le label donne le focus au champ, et les technologies d'assistance annoncent le libellé.
+
+Q: À quoi sert l'attribut name d'un champ de formulaire ? [cours]
++ À nommer la donnée envoyée lors de la soumission HTML
+- À relier le champ à son label dans le DOM
+- À fournir la valeur actuelle lue par JavaScript
+- À appliquer un style CSS spécifique au champ
+? id identifie l'élément pour le DOM et relie label et champ ; name devient la clé de la donnée envoyée au serveur.
+
+Q: Quel est le type de champ.value pour un <input type="number"> ? [cours]
++ string : même un champ numérique fournit du texte
+- number : le navigateur convertit selon le type du champ
+- boolean : true si le champ n'est pas vide
+- Le type dépend de la valeur saisie par l'utilisateur
+? La propriété value reflète la valeur actuelle saisie et reste une chaîne. On convertit explicitement avec Number(), puis on refuse la chaîne vide et les valeurs non finies.
+
+Q: Pourquoi refuser la saisie vide avant d'appeler Number() dans la calculatrice ? [cours]
++ Number("") vaut 0 : une saisie vide serait prise pour un zéro valide
+- Number("") lève une TypeError qui bloquerait la calculatrice
+- Number("") renvoie NaN, ce qui empêche toute addition
+- Les champs vides ne sont jamais envoyés par le navigateur
+? On teste d'abord champ.value.trim() !== "", puis Number() et Number.isFinite() : la conversion seule ne distingue pas « vide » de « zéro ».
+
+Q: Que renvoie lireEntier(champ) pour la saisie "2.5" ? [cours]
+|function lireEntier(champ) {
+|    const texte = champ.value.trim();
+|    if (texte === "") return null;
+|    const nombre = Number(texte);
+|    if (!Number.isInteger(nombre) || nombre < 0) {
+|        return null;
+|    }
+|    return nombre;
+|}
++ null : Number.isInteger(2.5) est faux
+- 2.5 : la fonction renvoie toujours le nombre converti
+- 2 : la partie décimale est supprimée par la fonction
+- NaN : le point décimal n'est pas accepté par Number()
+? Le contrat : un entier positif ou nul, sinon null. Le code appelant décide comment afficher l'erreur ; il teste valeur === null pour ne pas confondre 0 et « saisie invalide ».
+
+Q: Pourquoi tester valeur === null plutôt que if (!valeur) pour signaler une saisie invalide ? [cours]
++ 0 est valide : !valeur le prendrait pour une saisie invalide
+- !valeur lève une exception quand valeur vaut null
+- === null est plus rapide à évaluer que !valeur
+- !valeur n'est pas autorisé dans un opérateur conditionnel
+? Quand la règle métier autorise une quantité nulle, 0 doit être accepté : seul null signale l'échec.
+
+Q: Que fait un <button> sans attribut type placé dans un <form> ? [cours]
++ Il soumet le formulaire, comme s'il avait type="submit"
+- Il ne fait rien tant qu'un écouteur click n'est pas enregistré
+- Il réinitialise les champs, comme type="reset"
+- Il ouvre une boîte de dialogue de confirmation
+? Dans un formulaire, le type par défaut d'un bouton est submit. Pour une action sans envoi, on écrit type="button".
+
+Q: Quel événement permet de réagir à chaque modification de la valeur pendant la saisie ? [cours]
++ input
+- change
+- submit
+- click
+? input se déclenche à chaque modification ; change attend une modification validée (perte de focus pour certains champs) ; submit concerne l'envoi du formulaire ; click l'activation d'un bouton.
+
+Q: Pourquoi privilégier addEventListener à la propriété onclick ? [cours]
++ Il enregistre plusieurs écouteurs sans écraser les précédents
+- onclick ne fonctionne pas sur les éléments de type button
+- addEventListener est le seul à recevoir l'objet event
+- onclick exécute le gestionnaire avant même que le clic se produise
+? onclick n'accepte qu'un gestionnaire : une nouvelle affectation remplace l'ancien. On évite aussi les attributs onclick="..." dans le HTML : la logique d'interaction reste dans script.js.
+
+Q: Que se passe-t-il avec bouton.addEventListener("click", afficherBonjour()) ? [cours]
++ La fonction s'exécute tout de suite, avant tout clic
+- La fonction est appelée à chaque clic, comme prévu
+- Une SyntaxError empêche l'exécution du script
+- La fonction est appelée deux fois à chaque clic
+? On fournit la fonction elle-même, sans parenthèses : afficherBonjour. Avec les parenthèses, elle s'exécute pendant l'installation du script et le navigateur reçoit son résultat (ici undefined).
+
+Q: Quand préférer une fonction nommée à une fonction fléchée comme gestionnaire d'événement ? [cours]
++ Quand le traitement est long ou réutilisé à plusieurs endroits
+- Quand le gestionnaire doit recevoir l'objet event en paramètre
+- Quand l'écouteur doit être enregistré après le chargement de la page
+- Quand on veut que le gestionnaire s'exécute avant tous les autres
+? Une fonction fléchée convient à une action courte écrite sur place ; une fonction nommée est plus lisible et réutilisable pour un traitement long. Les deux reçoivent event.
+
+Q: Qui transmet l'objet event au gestionnaire d'un événement ? [cours]
++ Le navigateur, automatiquement, quand l'événement se produit
+- Le développeur, en l'ajoutant comme second argument de addEventListener
+- Le serveur, dans l'en-tête de la réponse HTTP
+- Le moteur JavaScript, uniquement dans les fonctions fléchées
+? event décrit l'événement (type, target, currentTarget…) et est passé automatiquement au gestionnaire, qu'il soit nommé ou fléché.
+
+Q: Quelle différence y a-t-il entre event.target et event.currentTarget ? [cours]
++ target est l'élément d'origine ; currentTarget celui qui porte l'écouteur
+- target porte l'écouteur ; currentTarget est l'élément où l'événement est né
+- Les deux désignent toujours le même élément, sans exception possible
+- target est le formulaire ; currentTarget est le document entier
+? Quand on clique sur un enfant du bouton (une icône, un span), target est cet enfant alors que currentTarget reste le bouton qui porte l'écouteur.
+
+Q: Que fait event.preventDefault() dans un écouteur d'événement submit ? [cours]
++ Il annule la soumission par défaut ; les autres écouteurs restent actifs
+- Il supprime tous les autres écouteurs enregistrés sur le formulaire
+- Il empêche l'événement de se produire dans la page
+- Il valide automatiquement les champs avant l'envoi
+? Sans preventDefault, un formulaire submit navigue ou recharge la page. On l'annule pour effectuer un calcul local et garder l'écran, si l'événement est annulable.
+
+Q: Pourquoi écouter submit sur le formulaire plutôt que click sur le bouton Calculer ? [cours]
++ submit couvre aussi la touche Entrée dans un champ
+- click ne fonctionne pas sur un élément <button>
+- submit est le seul événement qui reçoit l'objet event
+- click est supprimé quand le bouton est dans un formulaire
+? Un formulaire gère naturellement la soumission avec le clic ou la touche Entrée : l'écouteur submit est l'endroit logique pour lire les valeurs et calculer.
+
+Q: Que renvoie calculer(8, 0, "/") et pourquoi ? [cours]
+|function calculer(a, b, operation) {
+|    switch (operation) {
+|        case "+": return a + b;
+|        case "-": return a - b;
+|        case "*": return a * b;
+|        case "/": return b === 0 ? null : a / b;
+|        default: return null;
+|    }
+|}
++ null : la division par zéro est signalée, pas Infinity
+- Infinity : JavaScript divise 8 par 0 sans rien signaler
+- NaN : 8 / 0 n'est pas un nombre
+- 0 : la fonction retourne la valeur du second opérande
+? null signale une opération invalide ou une division par zéro. La fonction de calcul ne dépend ni d'un bouton ni des champs HTML : on la teste isolément avant de la connecter au formulaire.
+
+Q: À quoi sert aria-live="polite" sur l'élément <output> du résultat ? [cours]
++ À faire annoncer les mises à jour par les technologies d'assistance
+- À rafraîchir automatiquement la page toutes les secondes
+- À masquer le résultat tant que l'utilisateur n'a pas cliqué
+- À mettre le résultat en forme selon la langue du navigateur
+? <output> est conçu pour afficher un résultat ; aria-live aide à annoncer ses changements. Les messages dynamiques importants doivent être perceptibles sans la vue.
+
+Q: Pourquoi utiliser un vrai <button> plutôt qu'un <div> avec un écouteur click ? [cours]
++ Le focus et l'activation au clavier sont fournis nativement
+- Un div ne peut pas recevoir d'événement click
+- Un button est le seul élément qu'on peut styler avec du CSS
+- Un div ne peut pas contenir de texte dans un formulaire
+? Un div avec click n'acquiert pas automatiquement tous les comportements d'un bouton natif : focus, Entrée et Espace, rôle annoncé. Les commandes reçoivent aussi un nom accessible.
+
+Q: Que permet step="any" sur un <input type="number"> ? [cours]
++ D'accepter les décimales au niveau de l'interface HTML
+- De limiter la saisie aux seuls nombres entiers
+- De convertir automatiquement la valeur en number
+- De valider le champ côté serveur avant l'envoi
+? Par défaut, le pas est 1 et l'interface refuse les décimales. step="any" les accepte, mais ne remplace ni la validation en JavaScript (Number.isFinite) ni celle du serveur.
+
+Q: Au clic sur un carré de la matrice de formes, que doit-on faire ? [cours]
++ Inverser son état, puis imposer ce nouvel état à tous les éléments de sa ligne
+- Inverser seulement son état, sans modifier les voisins
+- Inverser son état, puis imposer le nouvel état à sa ligne et à sa colonne
+- Remplir ou vider toute la matrice selon son état précédent
+? Rond : inverse son propre état. Carré : inverse son état puis l'impose à sa ligne. Losange : l'impose à sa ligne ET à sa colonne. Tout remplir / tout vider appliquent directement un booléen à toutes les formes.
+
+Q: Comment imposer à toute la ligne l'état du bouton cliqué ? [cours]
+|const actif = bouton.classList.toggle("active");
+|for (const forme of formesDeLaLigne) {
+|    forme.classList.toggle("active", actif);
+|}
++ toggle renvoie le nouvel état ; le second argument force cet état sur chaque forme
+- toggle renvoie toujours true ; la boucle ajoute donc la classe partout
+- toggle renvoie la liste des classes ; la boucle les recopie une à une
+- toggle ne renvoie rien ; il faut relire la classe avec contains avant la boucle
+? actif mémorise le nouvel état du bouton cliqué ; toggle("active", actif) l'impose aux autres formes, qu'elles soient actives ou non.
+
+Q: Quel sélecteur récupère les formes de la ligne d'indice 2 de la matrice ? [cours]
++ .forme[data-row="2"]
+- .forme.row-2
+- #forme[data-row=2]
+- .forme:row(2)
+? Les coordonnées sont portées par data-row et data-col : la position est disponible dans l'HTML fourni, donc dans les sélecteurs. La valeur vient ici d'un kit contrôlé : on ne concatène pas arbitrairement une saisie utilisateur dans un sélecteur.
+
+Q: Un script exécute document.querySelector("#message").textContent = "OK" et la console signale une erreur sur null. Quelle est la cause la plus probable ? [cours]
++ Le sélecteur ne trouve rien : élément absent ou pas encore créé
+- Le texte est trop court pour être affiché dans la page
+- textContent est réservé aux balises d'images
+- La console empêche le DOM de se construire
+? Vérifier le sélecteur exact et le moment du chargement (defer). Afficher les erreurs ne les provoque pas.
+
+Q: Après la sélection, on change la classe active d'un élément. Quelle API garde la liste d'éléments sélectionnés à l'origine ? [cours]
++ querySelectorAll : NodeList statique au moment de la sélection
+- getElementsByClassName : HTMLCollection mise à jour en direct
+- getElementsByTagName : HTMLCollection mise à jour en direct
+- getElementById : une collection de tous les id identiques
+? « Statique » concerne l'appartenance à la liste, pas l'état interne des éléments. getElementById renvoie un élément ou null, pas une collection.
+
+Q: Un calcul concatène deux chaînes au lieu d'additionner, alors que tous les éléments sont bien sélectionnés. À quel niveau se situe l'erreur ? [cours]
++ Conversion : les valeurs lues dans les champs sont des chaînes
+- Sélection : un sélecteur CSS renvoie null
+- Événement : l'écouteur n'est pas enregistré sur le bon élément
+- Présentation : la feuille de style masque le résultat
+? Identifier le niveau fautif : sélection, événement, conversion, règle métier, présentation. Le DOM peut fonctionner alors que la logique est fausse : "2" + "3" donne "23".
+
+Q: Que vérifie la recette fonctionnelle du module DOM ? [cours]
++ Structure, sélecteurs, conversions, événements et matrice
+- Uniquement l'apparence de la page dans un seul navigateur
+- Seulement que le script se charge sans afficher d'erreur
+- Le temps de chargement des images et des polices
+? Structure HTML valide (defer, labels, boutons accessibles) ; sélecteurs trouvés ou introuvables ; conversions (vide, décimal, négatif, zéro) ; événements click, input, submit, aussi au clavier ; matrice (ronds, lignes, colonne, losange, actions globales). On garde une preuve : précondition, action, attendu, observé, verdict.

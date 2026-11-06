@@ -1,0 +1,334 @@
+// Banque de questions — chapitre 26 : sécuriser une API REST (JWT, Bearer, middleware Slim 4)
+// Questions inspirées du cours « Sécuriser une API REST — JWT et authentification » (T. Ferut, CC BY-SA 4.0).
+
+# 26
+
+Q: Un DELETE /api/livres/7 sans aucun contrôle répond 204 et supprime le livre. Que sait le routeur de cette requête ? [cours]
++ La méthode et l'URL, mais ni l'identité de l'appelant ni ses droits
+- L'identité de l'appelant, mais pas la méthode ni les droits associés
+- La méthode, l'URL et le rôle que l'appelant déclare lui-même
+- Rien : un routeur ne lit jamais la méthode HTTP ni l'URL
+? Le routeur associe méthode + URL à une route. Savoir QUI appelle et s'il en a le DROIT demande une authentification, puis une autorisation.
+
+Q: Quelle question pose l'authentification, et quelle question pose l'autorisation ? [cours]
++ Authentification : « qui êtes-vous ? » ; autorisation : « avez-vous le droit ? »
+- Authentification : « avez-vous le droit ? » ; autorisation : « qui êtes-vous ? » à chaque route
+- Les deux posent « qui êtes-vous ? », la seconde étant simplement plus stricte que la première
+- Les deux vérifient le mot de passe, la seconde le faisant de nouveau à chaque route protégée
+? On s'authentifie d'abord (mot de passe → identité établie), puis chaque opération est autorisée selon le rôle ET la ressource concernée.
+
+Q: Nina présente un JWT valide et demande DELETE /api/livres/7, un livre qui appartient à quelqu'un d'autre. Que doit répondre l'API ? [cours]
++ 403 : identité reconnue, mais action interdite sur cette ressource
+- 401 : le jeton est valide mais ne suffit jamais pour supprimer
+- 204 : un jeton valide autorise toutes les suppressions de l'API
+- 400 : la requête DELETE est syntaxiquement mal formée ici
+? Un JWT valide prouve une authentification acceptée, pas tous les droits : le contrôleur vérifie le rôle et la propriété du livre. (Un 404 reste possible si l'API masque volontairement l'existence de la ressource.)
+
+Q: Quelle différence y a-t-il entre une session PHP et un jeton Bearer ? [cours]
++ Le cookie de session est envoyé automatiquement ; le jeton Bearer est joint explicitement dans Authorization
+- La session voyage dans l'en-tête Authorization ; le jeton Bearer est stocké dans un cookie PHPSESSID
+- La session n'existe que côté client ; le jeton Bearer garde son état dans la base de données
+- Les deux sont envoyés automatiquement par le navigateur dès qu'une requête part vers le serveur
+? Session : le navigateur renvoie PHPSESSID et PHP retrouve l'état côté serveur. Bearer : le client ajoute Authorization: Bearer <jeton> à chaque requête, et l'API le vérifie à chaque fois.
+
+Q: Un jeton « Bearer » est-il forcément un JWT ? [cours]
++ Non : Bearer décrit comment le jeton est présenté, JWT décrit son format
+- Oui : le mot Bearer désigne le format JWT dans l'en-tête Authorization
+- Oui : tout jeton présenté dans Authorization doit être un JWT signé
+- Non : un jeton Bearer est toujours un identifiant de session PHP
+? Un jeton Bearer peut être opaque (chaîne aléatoire) ou au format JWT. Il ne faut pas confondre le format du jeton et son mode de présentation.
+
+Q: À quoi sert typiquement une API Key ? [cours]
++ À identifier un appelant, souvent un logiciel, avec des permissions limitées
+- À chiffrer le corps des requêtes échangées entre le client et le serveur Web
+- À remplacer le mot de passe d'un utilisateur humain sur toutes les pages
+- À signer chaque réponse du serveur pour prouver son authenticité au client
+? Une clé d'API est une valeur opaque qui identifie un appelant (souvent un service) et peut être limitée à certaines permissions. Elle ne chiffre rien.
+
+Q: Que signifie JWT, et quelle norme le décrit ? [cours]
++ JSON Web Token, décrit par la RFC 7519
+- Java Web Toolkit, décrit par la RFC 2616
+- JavaScript Web Transfer, décrit par la RFC 7231
+- JSON Web Transaction, décrit par la RFC 6749
+? JWT = JSON Web Token (RFC 7519) : un format de jeton compact qui transporte des affirmations, appelées claims.
+
+Q: Comment un JWT signé est-il structuré ? [cours]
++ Trois segments en Base64url séparés par des points : header, payload, signature
+- Deux blocs séparés par deux-points : l'identifiant puis le mot de passe
+- Un seul bloc binaire chiffré, lisible uniquement avec la clé du serveur
+- Trois segments en JSON brut séparés par des virgules : type, données, date
+? Header . Payload . Signature. Les deux premiers segments sont lisibles après décodage ; le troisième sert à vérifier l'intégrité du jeton.
+
+Q: Que contient le header d'un JWT signé en HS256 ? [cours]
+|{ "alg": "HS256", "typ": "JWT" }
++ L'algorithme déclaré et le type du jeton
+- L'identité de l'utilisateur et son rôle
+- La date d'expiration du jeton
+- La clé secrète qui a servi à signer
+? alg = algorithme, typ = type du jeton. L'identité et les dates sont dans le payload ; la clé secrète ne figure jamais dans le jeton.
+
+Q: Dans le payload d'un JWT, que désigne le claim `aud` ? [cours]
++ Le destinataire attendu du jeton, par exemple l'API concernée
+- L'émetteur du jeton, c'est-à-dire le serveur qui l'a signé
+- Le sujet du jeton, par exemple l'identifiant du compte
+- La date d'émission du jeton, en secondes Unix
+? iss = émetteur, aud = destinataire, sub = sujet, iat = date d'émission, exp = date d'expiration. L'API vérifie que aud lui correspond bien.
+
+Q: Quel claim contient la date d'expiration d'un JWT ? [cours]
+= exp
+i: trois lettres
+? exp (expiration time) est une date en secondes Unix. Après cette date, l'API doit refuser le jeton (401), même si la signature est correcte.
+
+Q: Le payload d'un JWT signé (JWS) est-il confidentiel ? [cours]
++ Non : il est seulement encodé en Base64url, donc lisible sans clé
+- Oui : la signature HS256 chiffre le header et le payload
+- Oui : Base64url est un chiffrement symétrique protégé par la clé
+- Non, sauf si la valeur de chaque claim est écrite en minuscules
+? Encodage (Base64url), signature (intégrité) et chiffrement (confidentialité) sont trois choses différentes. Ne place jamais de mot de passe ni de secret dans un payload.
+
+Q: À quoi sert la signature HS256 d'un JWT ? [cours]
++ À détecter toute modification du header ou du payload par un tiers
+- À cacher le contenu du payload à quiconque intercepte le jeton
+- À prouver que l'utilisateur connaît encore son mot de passe actuel
+- À empêcher qu'un jeton volé soit réutilisé par quelqu'un d'autre
+? La signature garantit l'intégrité (et l'origine, selon la clé). Elle ne cache rien et n'empêche pas la réutilisation d'un jeton volé.
+
+Q: Comment la signature HS256 est-elle calculée ? [cours]
++ HMAC-SHA256 sur header.payload encodés, avec une clé secrète gardée côté serveur
+- SHA-256 du seul payload, sans clé, puis encodage Base64url du résultat
+- Chiffrement RSA du payload avec la clé publique de l'utilisateur concerné
+- Hachage du mot de passe de l'utilisateur avec bcrypt, puis ajout d'un sel
+? Base64url(header) + "." + Base64url(payload) passent dans HMAC-SHA256 avec la clé secrète. Sans cette clé, impossible de fabriquer une signature valide.
+
+Q: Un attaquant remplace "role":"user" par "role":"admin" dans le payload, sans changer la signature. Que se passe-t-il ? [cours]
++ L'API recalcule la signature, constate l'écart et répond 401
+- L'API accepte : le rôle admin est lu directement dans le jeton
+- L'API accepte tant que le jeton n'a pas atteint sa date exp
+- L'API répond 403, car l'identité est reconnue mais pas le rôle
+? Décoder n'est pas vérifier : le serveur ne doit jamais faire confiance à un rôle lu dans un jeton dont la signature n'a pas été vérifiée. Signature invalide → 401.
+
+Q: Un JWT a une signature correcte, mais son claim exp est dans le passé. Quel statut l'API doit-elle répondre ? [cours]
+= 401
+? Une signature valide ne suffit pas : l'API vérifie aussi l'expiration (exp), l'émetteur (iss), le destinataire (aud) et le sujet (sub). Jeton expiré → 401.
+
+Q: Un jeton a une signature et des dates valides, mais son claim aud désigne une autre API. Que fait l'API ? [cours]
++ Elle le rejette : le jeton n'est pas destiné à cette API
+- Elle l'accepte : seuls la signature et exp comptent vraiment
+- Elle l'accepte et ajoute l'autre API à sa liste de confiance
+- Elle le déchiffre avec la clé de l'autre API avant de décider
+? Le middleware contrôle iss, aud et sub en plus de la signature et des dates, selon le contrat de l'API.
+
+Q: Quelle est la bonne séquence pour obtenir puis utiliser un jeton ? [cours]
++ POST /api/login, vérification du mot de passe, JWT signé renvoyé, puis requêtes avec Authorization: Bearer
+- POST /api/login, JWT renvoyé sans vérifier le mot de passe, puis requêtes avec ce même mot de passe
+- GET /api/livres, jeton exigé dans la réponse du serveur, puis POST /api/login avec ce même jeton
+- POST /api/login, mot de passe copié dans le payload du jeton, puis requêtes envoyées avec un cookie
+? Le mot de passe sert à se connecter ; ensuite le client présente un jeton, que l'API vérifie avant d'accéder au métier à chaque requête protégée.
+
+Q: Pourquoi POST /api/login répond-il 401 avec le même message pour un email inconnu et pour un mauvais mot de passe ? [cours]
++ Pour ne pas révéler si l'adresse email existe dans la base
+- Pour économiser une requête SQL supplémentaire lors de la vérification du compte
+- Parce que le code 404 est réservé aux seules ressources de type livre de l'API
+- Parce que password_verify() lève toujours une exception quand l'email est inconnu
+? Un échec d'authentification doit rester neutre : l'attaquant ne doit pas pouvoir tester quelles adresses ont un compte. On ne renvoie jamais le hash ni le mot de passe.
+
+Q: Pourquoi la réponse de POST /api/login porte-t-elle l'en-tête Cache-Control: no-store ? [cours]
++ Elle contient un jeton d'accès : aucun cache ne doit en garder une copie
+- Pour que le navigateur redemande le jeton à chaque affichage de page
+- Pour accélérer les réponses suivantes en les stockant côté serveur
+- Pour empêcher le client de lire le champ token_type de la réponse
+? no-store interdit aux caches (navigateur, proxys) de conserver la réponse : elle contient un secret équivalent à une clé d'accès temporaire.
+
+Q: Pourquoi utiliser une bibliothèque comme firebase/php-jwt plutôt qu'écrire sa propre signature ? [cours]
++ Une bibliothèque maintenue et éprouvée évite d'inventer sa propre cryptographie
+- PHP ne sait pas calculer un HMAC sans une extension externe à installer au préalable
+- Le format JWT n'est défini nulle part ailleurs que dans cette bibliothèque précise
+- Elle supprime tout besoin de garder une clé secrète côté serveur pour signer
+? On l'installe avec Composer (composer require firebase/php-jwt) : JWT::encode() signe, JWT::decode() vérifie. On n'invente pas sa propre cryptographie.
+
+Q: Que fait ce code lors de la création d'un jeton ? [cours]
+|$now = time();
+|$payload = ["iss" => "lectures-app", "aud" => "lectures-api", "sub" => (string) $utilisateur["id"], "iat" => $now, "exp" => $now + 900];
+|$jwt = JWT::encode($payload, $cle, "HS256");
++ Il signe un jeton qui expire 15 minutes après son émission
+- Il chiffre un jeton valable 900 jours à partir de sa création
+- Il stocke un jeton de 900 octets dans la session PHP courante
+- Il crée un jeton qui n'expire pas tant que la clé ne change pas
+? exp = iat + 900 secondes = 15 minutes. HS256 signe (HMAC) mais ne chiffre pas ; sub contient l'identifiant du compte, jamais un mot de passe.
+
+Q: Où conserver la clé secrète qui signe les JWT ? [cours]
++ Dans la configuration du serveur, hors du dépôt Git et du code source
+- Dans le fichier index.php, pour qu'elle suive le code à chaque déploiement
+- Dans le payload du jeton, afin que l'API puisse vérifier la signature
+- Dans localStorage, pour que le client puisse signer ses requêtes
+? La clé doit être robuste, privée et jamais versionnée : quiconque la possède peut fabriquer des jetons valides.
+
+Q: Comment un client présente-t-il son jeton à l'API ? [cours]
+|GET /api/livres HTTP/1.1
+|Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
++ Dans l'en-tête Authorization, avec le schéma Bearer suivi du jeton
+- Dans l'URL, en paramètre ?token=, pour faciliter les tests avec curl
+- Dans le corps JSON de chaque requête, sous la clé « mot_de_passe »
+- Dans un cookie nommé PHPSESSID, ajouté automatiquement par PHP
+? Authorization: Bearer <jeton>. Le jeton ne doit pas figurer dans l'URL : elle apparaîtrait dans l'historique et dans les journaux.
+
+Q: Pourquoi passer new Key($cle, "HS256") à JWT::decode() ? [cours]
+|use Firebase\JWT\Key;
+|$claims = JWT::decode($token, new Key($cle, "HS256"));
++ L'algorithme attendu est imposé par le serveur, pas choisi par le header du jeton
+- Pour que le jeton soit d'abord déchiffré avec la clé, avant d'être décodé ensuite
+- Pour convertir automatiquement le payload JSON en tableau PHP associatif
+- Pour que la bibliothèque ignore la date d'expiration exp pendant la vérification
+? Si l'algorithme était lu dans le header, un attaquant pourrait en choisir un plus faible, voire aucun. decode() lève une exception si la signature ou les dates sont invalides → réponse 401.
+
+Q: Quel est le rôle du middleware d'authentification dans une API Slim 4 protégée ? [cours]
++ Extraire et vérifier le jeton avant le contrôleur, puis transmettre l'identité validée
+- Décider si l'utilisateur connecté a le droit de supprimer précisément ce livre-là
+- Écrire les requêtes SQL qui lisent le compte de l'utilisateur dans la base
+- Fabriquer le HTML de la page qui s'affiche juste après la connexion réussie
+? Le middleware répond à « qui êtes-vous ? » (jeton valide, identité transmise). Le contrôleur répond à « pouvez-vous supprimer CE livre ? » (rôle, propriétaire).
+
+Q: Dans cet extrait Slim 4, quelles routes exigent un jeton valide ? [cours]
+|$app->get("/api/livres", [$api, "liste"]);
+|$app->post("/api/livres", [$api, "creer"])->add($authMiddleware);
+|$app->delete("/api/livres/{id}", [$api, "supprimer"])->add($authMiddleware);
++ POST et DELETE seulement : la consultation reste publique
+- Les trois routes : un middleware s'applique à toute l'application
+- DELETE seulement : POST ne modifie pas de données existantes
+- Aucune : add() ne sert qu'à journaliser les appels reçus
+? ->add($authMiddleware) s'applique à la route qui le porte. Une route protégée n'est pas pour autant autorisée : le contrôleur vérifie encore les droits.
+
+Q: Quel statut renvoyer quand le jeton est absent, expiré ou invalide ? [cours]
+= 401
+? 401 Unauthorized : le client doit (re)s'authentifier. 403 Forbidden concerne une identité reconnue mais dont l'action est interdite.
+
+Q: Pourquoi est-ce une mauvaise pratique de répondre 200 avec {"error": "non autorisé"} ? [cours]
++ Le code HTTP doit refléter l'échec : 401 ou 403, pas un faux succès
+- Un corps JSON ne peut pas accompagner un code d'erreur HTTP, seulement un code de succès
+- Le code 200 est réservé aux requêtes envoyées avec la méthode GET, jamais avec DELETE
+- Les clients lisent uniquement le corps de la réponse et ignorent toujours le statut
+? Les clients, les caches et les outils de supervision s'appuient sur le statut. On répond 401 (non authentifié) ou 403 (interdit), avec un corps JSON d'explication si besoin.
+
+Q: Pourquoi un JWT volé reste-t-il dangereux malgré sa signature valide ? [cours]
++ L'API l'accepte tant qu'il n'a pas expiré ou été révoqué, quel que soit l'appelant
+- La signature d'un jeton volé devient automatiquement invalide dès que le vol est détecté
+- Le jeton volé ne contient plus le sujet : il pointe alors vers un compte qui n'existe plus
+- Le serveur ne vérifie la signature qu'au tout premier moment de la connexion initiale
+? Bearer signifie que celui qui possède le jeton peut le présenter. Défenses : HTTPS, durée courte, stockage prudent, révocation et prévention du XSS.
+
+Q: Quel compromis implique une durée de vie très courte du jeton (exp proche de iat) ? [cours]
++ Moins de risque en cas de vol, mais davantage de renouvellements à gérer
+- Plus de risque en cas de vol, mais beaucoup moins de requêtes d'authentification à gérer
+- Aucun compromis : un jeton plus court est toujours plus pratique pour tout le monde
+- Le jeton devient chiffré lorsque sa durée de vie passe sous la barre d'une heure
+? Durée courte = fenêtre d'attaque réduite, mais il faut renouveler l'accès (refresh token, nouvelle connexion).
+
+Q: L'utilisateur clique sur « Se déconnecter » et le client efface son jeton. Une copie volée du jeton reste-t-elle utilisable ? [cours]
++ Oui, tant que le serveur l'accepte : avant exp et sans révocation côté serveur
+- Non : effacer le jeton côté client suffit à l'annuler partout, y compris sur le serveur
+- Non : la déconnexion invalide la signature de toutes les copies déjà émises du jeton
+- Oui, mais seulement si la copie a été faite après le clic sur la déconnexion de l'utilisateur
+? Un JWT n'apporte pas de déconnexion immédiate. Il faut une liste de révocation ou un contrôle de version (donc un état côté serveur), ou une durée très courte.
+
+Q: À quoi sert un refresh token, distinct de l'access token ? [cours]
++ À obtenir un nouvel access token sans ressaisir le mot de passe
+- À signer les requêtes avec une seconde clé secrète côté client
+- À modifier le rôle inscrit dans un access token existant
+- À stocker la liste des livres consultés par l'utilisateur
+? Un refresh token délivre un nouvel access token. Il exige une protection et un cycle de vie adaptés (rotation, révocation).
+
+Q: Quel risque principal présente le stockage d'un JWT dans localStorage ? [cours]
++ Un script injecté (XSS) de la même origine peut lire le jeton et le voler
+- Le jeton est effacé à chaque fermeture de l'onglet du navigateur
+- Le jeton est envoyé automatiquement à tous les sites visités ensuite
+- Le navigateur refuse d'écrire une chaîne de plus de 255 caractères
+? localStorage est accessible au JavaScript de la même origine : un XSS peut lire et exfiltrer le jeton. Aucun emplacement n'est magique.
+
+Q: Un cookie HttpOnly + Secure règle-t-il tous les problèmes de stockage du jeton ? [cours]
++ Non : le CSRF reste à traiter, et un XSS peut encore envoyer des requêtes
+- Oui : un cookie HttpOnly est inaccessible à toute attaque Web
+- Oui : l'attribut Secure empêche aussi les attaques CSRF
+- Non : un cookie ne peut pas transporter un JWT, seulement un identifiant
+? HttpOnly cache le cookie à document.cookie, mais il est envoyé automatiquement (CSRF à traiter, SameSite) et un XSS peut toujours déclencher des requêtes depuis la page.
+
+Q: Quelle différence y a-t-il entre falsifier un JWT et le voler ? [cours]
++ Falsifier casse la signature (refus) ; voler la garde correcte (accepté tant que valide)
+- Falsifier et voler aboutissent au même refus, car la signature change à chaque fois qu'on copie
+- Voler un jeton est impossible tant que l'API est servie en HTTPS uniquement et sans exception
+- Falsifier est possible dès qu'on lit le payload, voler un jeton exige en revanche la clé secrète
+? La signature protège contre la falsification, pas contre la réutilisation d'un jeton volé. D'où : HTTPS, durée limitée, révocation, prévention du XSS.
+
+Q: Lesquelles de ces pratiques font partie des bonnes règles pour une API JWT ? [cours]
++ Imposer l'algorithme attendu (HS256) côté vérification
++ Contrôler la signature, exp, iss, aud et sub
++ Servir l'API en HTTPS
+- Lire l'algorithme à utiliser dans le header du jeton reçu
+- Ajouter le mot de passe dans le payload pour faciliter les tests
+? L'algorithme est imposé par le serveur ; les claims sont contrôlés ; HTTPS protège le transport ; aucune donnée sensible n'est placée dans le payload.
+
+Q: Quelles informations peut-on placer dans le payload d'un JWT ? [cours]
++ L'identifiant du compte (sub), les dates et les claims utiles à l'API
++ Un rôle, à condition de le contrôler après vérification de la signature
+- Le mot de passe de l'utilisateur, pour éviter de le redemander
+- Un numéro de carte bancaire, puisque la signature le protège
+? Le payload est lisible par quiconque détient le jeton : données minimales, aucun secret. La signature protège l'intégrité, pas la confidentialité.
+
+Q: Quel statut répond-on quand un client dépasse le nombre de tentatives autorisé sur POST /api/login ? [cours]
+= 429
+? 429 Too Many Requests : limitation du débit (rate limiting). Elle ne remplace ni les mots de passe robustes ni les vérifications JWT ; on journalise les échecs sans les secrets.
+
+Q: Pourquoi limiter les tentatives sur POST /api/login alors que les routes sont protégées par JWT ? [cours]
++ Des essais répétés de mots de passe restent possibles : JWT ne protège pas la porte d'entrée
+- Parce qu'un JWT expire plus vite quand le serveur reçoit un grand nombre de requêtes
+- Parce que la signature HS256 devient invalide dès la troisième requête en échec
+- Parce que le code 429 est le seul statut que les middlewares Slim acceptent de renvoyer
+? Le login est la route non protégée par jeton : on compte et on limite les tentatives selon le compte, l'adresse IP et le contexte.
+
+Q: Quelle affirmation distingue correctement JWT, OAuth 2.0 et OpenID Connect ? [cours]
++ JWT est un format de jeton, OAuth 2.0 un cadre de délégation d'accès, OpenID Connect une couche d'identité
+- JWT est un protocole de connexion, OAuth 2.0 un format de jeton, OpenID Connect un algorithme
+- Les trois termes désignent le même mécanisme sous des noms différents selon le fournisseur
+- OAuth 2.0 est un format de jeton, JWT délègue l'accès, OpenID Connect signe les requêtes
+? JWT = format (utilisable sans OAuth). OAuth 2.0 = délégation d'accès (un access token n'est pas forcément un JWT). OpenID Connect = authentification bâtie sur OAuth 2.0, avec un ID Token généralement au format JWT.
+
+Q: Dans OpenID Connect, quelle est la différence entre l'ID Token et l'access token ? [cours]
++ L'ID Token informe le client de l'identité authentifiée ; l'access token donne accès à une API
+- L'ID Token donne accès à l'API ; l'access token informe le client de l'identité de l'utilisateur
+- Les deux servent uniquement à accéder à l'API, avec simplement des durées de vie différentes
+- L'ID Token remplace le mot de passe ; l'access token remplace le refresh token à chaque requête
+? Un access token sert à accéder à une API ; un ID Token sert à informer le client de l'identité authentifiée.
+
+Q: Pour un site PHP classique dont les pages et le formulaire de connexion partagent la même origine, quel mécanisme est souvent le plus simple ? [cours]
++ Une session PHP avec un cookie de session
+- Un JWT stocké dans localStorage et lu par un script
+- Une API Key fixe copiée dans chaque formulaire
+- Un jeton OAuth délivré par un fournisseur externe
+? Tous les clients n'ont pas besoin de JWT : justifier le choix technique fait partie du métier. Un Bearer JWT devient pertinent pour une API multi-clients (Web, mobile, scripts).
+
+Q: Que doit-on constater après DELETE /api/livres/7 envoyé avec un jeton valide mais sans droit sur ce livre ? [cours]
++ Un 403, et le livre est toujours présent dans la base
+- Un 401, et le livre est supprimé puis restauré par une transaction
+- Un 204, et le livre disparaît seulement de la liste de l'utilisateur
+- Un 403, et le jeton est automatiquement révoqué par l'API
+? Une recette valide aussi l'absence d'effets indésirables, pas seulement le code HTTP : après un 403, la ressource reste intacte.
+
+Q: Quels statuts attend-on pour : GET public de la liste, login avec un mauvais mot de passe, DELETE autorisé ? [cours]
++ 200, 401, 204
+- 200, 403, 200
+- 204, 401, 403
+- 200, 404, 204
+? GET public → 200 avec la collection ; identifiants faux → 401, sans jeton émis ; DELETE avec droit effectif → 204, corps vide, ressource disparue.
+
+Q: CORS empêche-t-il un voleur de jeton d'appeler l'API depuis son propre programme ? [cours]
++ Non : CORS est une règle appliquée par les navigateurs, pas une authentification
+- Oui : CORS refuse toute requête dont le jeton n'a pas été émis localement
+- Oui : CORS signe chaque requête avec la clé secrète de l'API
+- Non, mais uniquement quand l'API utilise HS256 plutôt que RS256
+? curl, Postman ou un script serveur ignorent CORS : il ne remplace ni l'authentification, ni l'autorisation, ni la validation.
+
+Q: Une règle du type « si le rôle vaut admin, on saute la vérification de la signature » est dangereuse. Pourquoi ? [cours]
++ Le rôle lu dans un jeton non vérifié est une affirmation que n'importe qui peut écrire
+- Aucun risque : un jeton admin est forcément émis par le serveur lui-même, jamais par un tiers
+- Le rôle admin est explicitement interdit dans un payload par la RFC 7519 sur les JWT
+- La vérification de signature est beaucoup trop lente pour être appliquée aux comptes admin
+? Décoder n'est pas vérifier. Tant que la signature n'est pas contrôlée, le payload n'est qu'un texte modifiable par quiconque.
