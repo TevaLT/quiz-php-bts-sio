@@ -10,7 +10,10 @@ declare(strict_types=1);
 const THEMES = ['auto' => 'Auto', 'clair' => 'Clair', 'sombre' => 'Sombre'];
 
 /** Pages vers lesquelles on peut revenir après un changement de thème (liste blanche : pas de redirection ouverte). */
-const PAGES_RETOUR = ['/', '/stats', '/question', '/correction', '/bilan', '/sources', '/fiches'];
+const PAGES_RETOUR = ['/', '/stats', '/question', '/correction', '/bilan', '/sources', '/fiches', '/cours'];
+
+/** Pages dont l'adresse de retour garde le chapitre affiché (?ch=05). */
+const PAGES_PAR_CHAPITRE = ['/fiches', '/cours'];
 
 /**
  * URL d'une ressource statique, versionnée par sa date de modification (/assets/app.js?v=…) : le navigateur peut
@@ -112,6 +115,20 @@ function themeSuivant(string $theme): string
     $position = array_search($theme, $cles, true);
 
     return $cles[(is_int($position) ? $position + 1 : 0) % count($cles)];
+}
+
+/**
+ * Adresse de retour après un changement de thème : une page de la liste blanche, avec son chapitre (?ch=05) pour
+ * le cours et les fiches, afin de rester sur la leçon en cours de lecture. Tout le reste ramène à l'accueil.
+ */
+function adresseRetour(string $chemin, mixed $chapitre = null): string
+{
+    if (!in_array($chemin, PAGES_RETOUR, true)) {
+        return '/';
+    }
+    $avecChapitre = is_string($chapitre) && isset(TITRES[$chapitre]) && in_array($chemin, PAGES_PAR_CHAPITRE, true);
+
+    return $avecChapitre ? $chemin . '?ch=' . $chapitre : $chemin;
 }
 
 function enregistrerTheme(string $theme): void

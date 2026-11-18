@@ -16,7 +16,7 @@ Q: Que contient le cookie PHPSESSID ?
 | Marqueur | Rôle |
 |---|---|
 | `# NN` | chapitre des questions suivantes, de 00 à 27 (obligatoire avant la première question) |
-| `Q: texte` | début d'une question ; ajouter ` [cours]` en fin de ligne pour la rattacher à un cours (filtre « tirées des cours ») |
+| `Q: texte` | début d'une question ; ajouter ` [cours]` en fin de ligne pour la rattacher à un cours (filtre « tirées des supports de référence ») |
 | `\|code` | ligne de code affichée sous l'énoncé (la barre verticale est retirée ; le site la colore) |
 | `+ texte` | bonne réponse — **une seule** `+` : choix unique ; **plusieurs** `+` : cases multiples |
 | `- texte` | mauvaise réponse (au moins une) |

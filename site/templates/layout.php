@@ -6,7 +6,7 @@ $theme = themeActuel();
 $themeSuivant = themeSuivant($theme);
 $iconesThemes = ['auto' => '◐', 'clair' => '☀', 'sombre' => '☾'];
 $enCours = partieEnCours();
-$retour = in_array(cheminDemande(), PAGES_RETOUR, true) ? cheminDemande() : '/';
+$retour = adresseRetour(cheminDemande(), $_GET['ch'] ?? null);
 $courant = static fn (string $nom): string => $page === $nom ? ' aria-current="page"' : '';
 $flashs = consommerFlash();
 ?><!DOCTYPE html>
@@ -37,6 +37,7 @@ $flashs = consommerFlash();
                     <a href="/question" class="lien-en-cours"<?= $courant('jeu') ?>><span class="pastille" aria-hidden="true"></span>Partie en cours</a>
                 <?php endif; ?>
             <?php endif; ?>
+            <a href="/cours"<?= $courant('cours') ?>>Cours</a>
             <a href="/fiches"<?= $courant('fiches') ?>>Fiches</a>
             <a href="/stats"<?= $courant('stats') ?>>Statistiques</a>
         </nav>

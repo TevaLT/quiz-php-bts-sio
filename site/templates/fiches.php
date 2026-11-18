@@ -20,12 +20,15 @@ $resume = static fn (array $q): string => trim(implode(' ', array_column(array_f
             Fiches de révision
         <?php endif; ?>
     </h1>
+    <?php if ($chapitre !== null && fichierCours($chapitre) !== null): ?>
+        <p class="lien-lecon"><a class="btn" href="/cours?ch=<?= e($chapitre) ?>">Lire d'abord le cours de ce chapitre <span aria-hidden="true">→</span></a></p>
+    <?php endif; ?>
     <p class="chapo">
         <?php if ($chapitre !== null): ?>
             <?= (int) ($comptes[$chapitre] ?? 0) ?> questions avec leur réponse et leur explication<?= ($generes[$chapitre] ?? 0) > 0 ? ', plus ' . (int) $generes[$chapitre] . ' générateur(s) qui fabriquent des questions neuves pendant les parties' : '' ?>.
-            <?php if (isset(COURS_DU_CHAPITRE[$chapitre])): ?><br><span class="discret">Cours de référence : <?= e(typographie('« ' . COURS_DU_CHAPITRE[$chapitre] . ' »')) ?></span><?php endif; ?>
+            <?php if (isset(COURS_DU_CHAPITRE[$chapitre])): ?><br><span class="discret">Support de référence : <?= e(typographie('« ' . COURS_DU_CHAPITRE[$chapitre] . ' »')) ?></span><?php endif; ?>
         <?php else: ?>
-            Toutes les questions de la banque, rangées par chapitre, avec la bonne réponse et l'explication. Idéal pour apprendre avant de jouer, ou pour relire un chapitre raté.
+            Toutes les questions de la banque, rangées par chapitre, avec la bonne réponse et l'explication. Pour découvrir une notion, commence plutôt par <a href="/cours">le cours</a> ; les fiches servent à réviser et à relire un chapitre raté.
         <?php endif; ?>
     </p>
 
@@ -83,7 +86,7 @@ $resume = static fn (array $q): string => trim(implode(' ', array_column(array_f
                     <span class="num"><?= $k + 1 ?>.</span>
                     <span class="resume-court"><?= texteHtml(mb_strimwidth($resume($q), 0, 140, '…')) ?></span>
                     <?php if ($recherche !== ''): ?><span class="badge chap">Ch. <?= e($q['ch']) ?></span><?php endif; ?>
-                    <?php if ($q['cours']): ?><span class="badge neutre">cours</span><?php endif; ?>
+                    <?php if ($q['cours']): ?><span class="badge neutre" title="Question tirée d'un support de référence (voir Sources et licences)">support</span><?php endif; ?>
                 </summary>
                 <div class="detail-corps">
                     <div class="enonce"><?= enonceHtml($q) ?></div>

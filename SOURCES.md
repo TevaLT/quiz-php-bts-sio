@@ -24,6 +24,13 @@ des propositions de réponse et des explications écrites pour le quiz ; le text
 Les cours restent la référence pour apprendre. Les questions qui portaient sur les exercices des cours (scénarios de TP,
 fonctions à écrire) ont été retirées ou réécrites sur des exemples génériques.
 
+## Le cours du site (`cours/`)
+
+Les 28 chapitres de cours sont des **textes originaux**, écrits pour le quiz : ils expliquent le langage et ses outils
+(PHP, SQL, HTTP, JavaScript) avec des exemples génériques. Ils ne reproduisent ni le texte des cours de Térence FERUT, ni
+les exercices de TP. Les résultats annoncés (sorties de code, messages d'erreur) ont été vérifiés avec PHP 8.5 et Node.js.
+Pour les chapitres adossés à un support de référence, ce support reste cité dans la correction et dans les fiches.
+
 ## Autres sources
 
 - **Questions originales** : toutes les autres questions (dont la programmation objet, les exceptions, les chaînes, les
@@ -36,6 +43,7 @@ fonctions à écrire) ont été retirées ou réécrites sur des exemples géné
 
 ## Licences de ce dépôt
 
+- **Cours** (`cours/`) : [CC BY-SA 4.0](cours/LICENSE), comme la banque.
 - **Banque de questions** (`banque/`) : [CC BY-SA 4.0](banque/LICENSE). Tu peux la réutiliser et la modifier,
   à condition de créditer les sources (ce fichier) et de partager tes modifications sous la même licence.
   Crédit suggéré : *« Quiz BTS SIO SLAM, TevaLT, d'après les cours de Térence FERUT (CC BY-SA 4.0) »*.

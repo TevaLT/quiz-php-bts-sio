@@ -706,6 +706,135 @@ input[type="search"]:hover { border-color: var(--accent); }
 .lien-haut { margin-left: auto; font-weight: 600; }
 mark { background: color-mix(in srgb, var(--moyen) 35%, transparent); color: inherit; border-radius: 3px; padding: 0 0.1em; }
 
+/* ───────── Cours : sommaire ───────── */
+.page-cours { margin-inline: auto; }
+.tete-cours { padding-block: 0.6rem 0.2rem; }
+.tete-cours h1 { font-size: 2.1rem; }
+
+.reprise-cours { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.6rem 1.5rem; border-left: 5px solid var(--accent); }
+.reprise-cours h2 { font-size: 1.35rem; margin-bottom: 0.3rem; }
+.reprise-cours p { margin-bottom: 0.3rem; }
+.avancement { grid-column: 1 / -1; border-top: 1px solid var(--bordure); padding-top: 0.8rem; margin-top: 0.2rem; }
+.avancement p { margin: 0 0 0.45rem; }
+
+/* Colonnes équilibrées : le bloc 1 (8 chapitres) ne laisse pas de trou à côté de lui ; lecture de haut en bas. */
+.blocs-cours { columns: 2 25rem; column-gap: 1rem; margin-top: 1rem; }
+.blocs-cours .carte { break-inside: avoid; margin: 0 0 1rem; }
+.bloc-cours h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; font-size: 1.1rem; margin-bottom: 0.7rem; }
+.bloc-cours h2 .tuile-icone { min-width: 2.3rem; height: 2.3rem; font-size: 0.8rem; }
+.bloc-cours h2 .discret { font-weight: 500; font-size: 0.82rem; }
+.liste-cours { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.2rem; }
+.liste-cours li { position: relative; padding: 0.55rem 0.7rem; border-radius: 10px; border: 1px solid transparent; }
+.liste-cours li:hover { background: var(--accent-doux); }
+.liste-cours li.conseille { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: var(--accent-doux); }
+.lien-cours { display: inline-flex; align-items: baseline; gap: 0.45rem; font-weight: 700; color: var(--texte); text-decoration: none; }
+.lien-cours::after { content: ""; position: absolute; inset: 0; border-radius: 10px; } /* toute la ligne est cliquable */
+.lien-cours:hover .titre-cours { color: var(--accent-fort); text-decoration: underline; }
+.lien-cours:focus-visible { outline: none; }
+.lien-cours:focus-visible::after { outline: 3px solid var(--accent); outline-offset: 1px; }
+.lien-cours.inactif { color: var(--discret); }
+.lien-cours.inactif::after { content: none; }
+.resume-cours { margin: 0.15rem 0 0.35rem; font-size: 0.9rem; color: var(--discret); line-height: 1.45; }
+.meta-cours { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; margin: 0; font-size: 0.82rem; color: var(--discret); }
+.badge.maitrise.bon { background: var(--ok-fond); color: var(--ok); }
+.badge.maitrise.moyen { background: var(--moyen-fond); color: var(--moyen); }
+.badge.maitrise.faible { background: var(--ko-fond); color: var(--ko); }
+.badge.maitrise.neutre { background: var(--bg); color: var(--discret); border: 1px solid var(--bordure); }
+
+/* ───────── Cours : leçon ───────── */
+.fil { display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; margin: 0.2rem 0 0.9rem; font-size: 0.9rem; color: var(--discret); }
+.tete-lecon h1 { font-size: 2.1rem; }
+.tete-lecon h1 .num { font-size: 0.8em; margin-right: 0.2rem; }
+.tete-lecon .chapo { max-width: 46rem; }
+.meta-lecon { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 1.3rem; list-style: none; padding: 0; margin: 0.9rem 0 0; color: var(--discret); font-size: 0.92rem; }
+
+.lecon-grille { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 2.4rem; align-items: start; margin-top: 1.8rem; }
+.lecon-grille > .lecon-texte:only-child { grid-column: 1 / -1; }
+.sommaire-lecon { position: sticky; top: 4.8rem; max-height: calc(100vh - 6rem); overflow-y: auto; font-size: 0.9rem; }
+.sommaire-titre { margin: 0 0 0.5rem; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--discret); }
+.sommaire-lecon ol { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--bordure); }
+.sommaire-lecon a { display: block; margin-left: -2px; padding: 0.3rem 0.7rem; border-left: 2px solid transparent; color: var(--discret); text-decoration: none; line-height: 1.35; }
+.sommaire-lecon a:hover { color: var(--texte); }
+.sommaire-lecon a[aria-current="true"] { color: var(--accent-fort); border-left-color: var(--accent); font-weight: 700; }
+
+.lecon-texte { min-width: 0; max-width: 46rem; font-size: 1.04rem; line-height: 1.7; }
+.lecon-texte h2 { font-size: 1.45rem; margin: 2.6rem 0 0.8rem; scroll-margin-top: 5rem; }
+.lecon-texte > h2:first-child, .lecon-texte > .encadre:first-child { margin-top: 0; }
+.lecon-texte h3 { font-size: 1.12rem; margin: 1.7rem 0 0.5rem; scroll-margin-top: 5rem; }
+.lecon-texte p, .lecon-texte ul, .lecon-texte ol { margin-bottom: 1rem; }
+.lecon-texte li { margin-bottom: 0.35rem; }
+.lecon-texte li::marker { color: var(--accent); font-weight: 700; }
+.lecon-texte strong { font-weight: 700; }
+.lecon-texte :not(pre) > code, .resume-cours code, .chapo code { white-space: nowrap; } /* « ?> » ne se coupe pas en fin de ligne */
+.lecon-texte :not(pre) > code.long { white-space: normal; overflow-wrap: anywhere; } /* un long extrait peut, lui, passer à la ligne */
+
+.bloc-code { position: relative; margin: 0.6rem 0 1.3rem; border-radius: 12px; background: var(--code-fond); }
+.bloc-code::before {
+    content: attr(data-langue); display: block; padding: 0.4rem 1.1rem;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    color: #949cc4; border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+.bloc-code pre.code { margin: 0; border-radius: 0 0 12px 12px; line-height: 1.55; }
+.copier-code {
+    position: absolute; top: 0.28rem; right: 0.5rem;
+    font: inherit; font-size: 0.76rem; font-weight: 700; color: #c9cdea; cursor: pointer;
+    background: transparent; border: 1px solid rgb(255 255 255 / 16%); border-radius: 7px; padding: 0.08rem 0.55rem;
+}
+.copier-code:hover { background: rgb(255 255 255 / 10%); color: #ffffff; }
+.copier-code.copie { color: #a6e3a1; border-color: #a6e3a1; }
+
+.encadre {
+    margin: 1.3rem 0 1.5rem; padding: 0.85rem 1.1rem 0.15rem; border-radius: 12px;
+    border: 1px solid var(--bordure); border-left: 5px solid var(--accent); background: var(--info-fond);
+}
+.encadre .encadre-titre { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.45rem; font-weight: 800; color: var(--accent-fort); }
+.encadre-titre::before {
+    content: "i"; display: inline-grid; place-items: center; flex: none; width: 1.4rem; height: 1.4rem; border-radius: 50%;
+    border: 2px solid currentColor; font-size: 0.78rem; font-weight: 800; line-height: 1;
+}
+.encadre-objectifs .encadre-titre::before { content: "→"; }
+.encadre-retenir .encadre-titre::before { content: "✓"; }
+.encadre-attention .encadre-titre::before { content: "!"; }
+.encadre-astuce .encadre-titre::before { content: "★"; font-size: 0.7rem; }
+.encadre-exemple .encadre-titre::before { content: "›"; }
+.encadre > :last-child { margin-bottom: 0.75rem; }
+.encadre ul, .encadre ol { padding-left: 1.2rem; }
+.encadre .bloc-code { margin-bottom: 0.9rem; }
+.encadre-objectifs { background: var(--accent-doux); border-color: color-mix(in srgb, var(--accent) 35%, transparent); border-left-color: var(--accent); }
+.encadre-retenir { background: var(--ok-fond); border-color: color-mix(in srgb, var(--ok) 35%, transparent); border-left-color: var(--ok); }
+.encadre-retenir .encadre-titre { color: var(--ok); }
+.encadre-attention { background: var(--ko-fond); border-color: color-mix(in srgb, var(--ko) 35%, transparent); border-left-color: var(--ko); }
+.encadre-attention .encadre-titre { color: var(--ko); }
+.encadre-astuce { background: var(--moyen-fond); border-color: color-mix(in srgb, var(--moyen) 35%, transparent); border-left-color: var(--moyen); }
+.encadre-astuce .encadre-titre { color: var(--moyen); }
+
+.tableau-cours { margin: 0.3rem 0 1.3rem; font-size: 0.95rem; }
+.tableau-cours td { white-space: normal; vertical-align: top; }
+.tableau-cours thead th { text-transform: none; letter-spacing: 0; font-size: 0.85rem; }
+
+.teste-toi { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.6rem 1.5rem; margin-top: 2.8rem; border-left: 5px solid var(--accent); scroll-margin-top: 5rem; }
+.teste-toi h2 { margin: 0 0 0.3rem; font-size: 1.3rem; }
+.teste-toi p:last-child { margin-bottom: 0; }
+.teste-toi .actions { margin: 0; }
+
+.nav-lecons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 1rem; }
+.voisin {
+    display: grid; gap: 0.15rem; padding: 0.8rem 1rem; border: 1px solid var(--bordure); border-radius: 12px;
+    background: var(--carte); color: var(--texte); text-decoration: none; font-weight: 700; line-height: 1.35;
+}
+.voisin:hover { border-color: var(--accent); background: var(--accent-doux); }
+.voisin .discret { font-weight: 600; font-size: 0.82rem; }
+.voisin.suivant { grid-column: 2; text-align: right; }
+
+/* ───────── Accueil : carte « Apprendre » ───────── */
+.apprendre { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.6rem 1.2rem; }
+.apprendre h2 { margin: 0 0 0.2rem; font-size: 1.15rem; }
+.apprendre p { margin: 0; }
+.apprendre .tuile-icone { min-width: 3rem; height: 3rem; }
+.apprendre .actions { margin: 0; }
+.lien-lecon { margin: 0.1rem 0 0.9rem; }
+.lien-lecon .btn { padding-block: 0.45rem; font-size: 0.92rem; }
+
 /* ───────── Page « Sources et licences » ───────── */
 .page-texte { max-width: 46rem; margin-inline: auto; }
 .page-texte .carte p:last-child, .page-texte .carte ul:last-child { margin-bottom: 0; }
@@ -714,8 +843,21 @@ mark { background: color-mix(in srgb, var(--moyen) 35%, transparent); color: inh
 .pied-in { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.4rem 1.5rem; }
 
 /* ───────── Écrans moyens et petits ───────── */
+@media (max-width: 60rem) {
+    /* Leçon : le sommaire du chapitre passe au-dessus du texte. */
+    .lecon-grille { grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 1.3rem; }
+    .sommaire-lecon {
+        position: static; max-height: none; overflow: visible; margin-bottom: 1.6rem;
+        padding: 0.9rem 1rem; border: 1px solid var(--bordure); border-radius: 12px; background: var(--carte);
+    }
+    .lecon-texte { max-width: none; }
+}
+
 @media (max-width: 52rem) {
     .hero { grid-template-columns: 1fr; }
+    .reprise-cours, .teste-toi { grid-template-columns: 1fr; }
+    .apprendre { grid-template-columns: auto minmax(0, 1fr); }
+    .apprendre .actions { grid-column: 1 / -1; }
     .etape-suivante { grid-template-columns: 1fr; }
     .etape-suivante .actions { justify-content: flex-start; }
 }
@@ -746,6 +888,15 @@ mark { background: color-mix(in srgb, var(--moyen) 35%, transparent); color: inh
     .barre-depart { margin-inline: -1rem; padding-inline: 1rem; }
     .barre-depart .btn { flex: 1 1 100%; }
     .hero-liens { grid-template-columns: 1fr; }
+    .tete-cours h1, .tete-lecon h1 { font-size: 1.6rem; }
+    .lecon-texte { font-size: 1rem; line-height: 1.65; }
+    .lecon-texte :not(pre) > code { white-space: normal; overflow-wrap: anywhere; } /* écran étroit : pas de débordement */
+    .lecon-texte h2 { font-size: 1.3rem; margin-top: 2.2rem; }
+    .bloc-code pre.code { font-size: 0.85rem; padding: 0.8rem 0.9rem; }
+    .nav-lecons { grid-template-columns: 1fr; }
+    .voisin.suivant { grid-column: auto; }
+    .apprendre .tuile-icone { display: none; }
+    .apprendre { grid-template-columns: 1fr; }
 
     /* Les boutons d'action restent à portée du pouce, collés en bas de l'écran. */
     .actions-jeu {
@@ -778,7 +929,12 @@ html { scroll-behavior: smooth; }
         --code-fond: #f3f3f6; --code-texte: #000000; --code-inline: #f3f3f6;
         --graphe-serie: #3730a3; --graphe-contexte: #555555;
     }
-    .entete, .pied, .saut, .actions, .abandon, .raccourcis, .alerte, .flashs, .infobulle, .recherche, .nav-fiches, .outils-fiches, .fin-fiches, .chrono, .etape-suivante { display: none !important; }
+    .entete, .pied, .saut, .actions, .abandon, .raccourcis, .alerte, .flashs, .infobulle, .recherche, .nav-fiches, .outils-fiches, .fin-fiches, .chrono, .etape-suivante,
+    .fil, .sommaire-lecon, .teste-toi, .nav-lecons, .copier-code, .meta-lecon a { display: none !important; }
+    .lecon-grille { display: block; }
+    .bloc-code { background: none; break-inside: avoid; }
+    .bloc-code::before { color: #444444; border-bottom: 0; padding-inline: 0; }
+    .encadre { break-inside: avoid; }
     body { display: block; }
     main { padding: 0; }
     .carte { box-shadow: none; break-inside: avoid; }

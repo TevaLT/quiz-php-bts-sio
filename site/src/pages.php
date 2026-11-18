@@ -73,6 +73,8 @@ function pageAccueil(?array $valeurs = null, array $erreurs = [], int $statut = 
     }
     $partie = partieEnCours();
     $valeurs ??= derniersReglages($partie) ?? reglagesParDefaut();
+    $chapitres = statistiquesHistorique($histo, $statiques)['chapitres'];
+    $conseille = chapitreConseille($chapitres);
 
     rendre('accueil', [
         'titre' => 'Accueil',
@@ -89,7 +91,9 @@ function pageAccueil(?array $valeurs = null, array $erreurs = [], int $statut = 
         'nbSessions' => count($histo['sessions']),
         'record' => meilleureSerieHistorique($histo),
         'partie' => $partie,
-        'fragiles' => chapitresFragiles(statistiquesHistorique($histo, $statiques)['chapitres']),
+        'fragiles' => chapitresFragiles($chapitres),
+        'conseille' => $conseille,
+        'coursConseille' => $conseille !== null ? lireCours($conseille) : null,
     ], $statut);
 }
 
@@ -325,6 +329,49 @@ function pageFiches(): never
     ]);
 }
 
+/**
+ * Cours : sommaire des chapitres (/cours) ou leçon d'un chapitre (/cours?ch=05).
+ * Le chapitre est validé par liste blanche (TITRES) : un chapitre inconnu, ou pas encore rédigé, donne un 404.
+ */
+function pageCours(): never
+{
+    [$statiques, $generateurs] = banque();
+    $chapitres = statistiquesHistorique(chargerHistorique(), $statiques)['chapitres'];
+    $partie = partieEnCours();
+    $chapitre = $_GET['ch'] ?? null;
+
+    if ($chapitre === null) {
+        rendre('cours', [
+            'titre' => 'Cours',
+            'page' => 'cours',
+            'chapitre' => null,
+            'liste' => listeCours(),
+            'chapitres' => $chapitres,
+            'conseille' => chapitreConseille($chapitres),
+        ]);
+    }
+
+    $cours = is_string($chapitre) && isset(TITRES[$chapitre]) ? lireCours($chapitre) : null;
+    if ($cours === null) {
+        erreurHttp(404, 'Chapitre introuvable', "Ce chapitre n'existe pas : choisis-en un dans le sommaire du cours.");
+    }
+    $cles = array_map(static fn ($ch): string => sprintf('%02d', (int) $ch), array_keys(TITRES));
+    $position = (int) array_search($chapitre, $cles, true);
+
+    rendre('cours', [
+        'titre' => 'Cours · ' . TITRES[$chapitre],
+        'page' => 'cours',
+        'chapitre' => $chapitre,
+        'cours' => $cours,
+        'stats' => $chapitres[$chapitre],
+        'nbQuestions' => count(array_filter($statiques, static fn (array $q): bool => $q['ch'] === $chapitre)),
+        'nbGenerateurs' => count(array_filter($generateurs, static fn (array $g): bool => $g[0] === $chapitre)),
+        'precedent' => $cles[$position - 1] ?? null,
+        'suivant' => $cles[$position + 1] ?? null,
+        'partieEnCours' => $partie !== null && !$partie['terminee'],
+    ]);
+}
+
 function pageReinitialiser(): never
 {
     rendre('reinitialiser', ['titre' => 'Effacer l\'historique', 'page' => 'stats']);
@@ -355,6 +402,9 @@ function actionTheme(): never
     }
     enregistrerTheme($theme);
 
+    // « /cours?ch=05 » : le chemin et le chapitre sont revalidés (liste blanche), jamais recopiés tels quels.
     $retour = $_POST['retour'] ?? '/';
-    rediriger(is_string($retour) && in_array($retour, PAGES_RETOUR, true) ? $retour : '/');
+    [$chemin, $requete] = array_pad(explode('?', is_string($retour) ? $retour : '/', 2), 2, '');
+    parse_str($requete, $parametres);
+    rediriger(adresseRetour($chemin, $parametres['ch'] ?? null));
 }

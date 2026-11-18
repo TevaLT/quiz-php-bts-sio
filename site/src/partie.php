@@ -518,11 +518,11 @@ function bilanPartie(array $partie): array
 
 /**
  * La prochaine étape conseillée après une partie, affichée en tête du bilan : une seule action mise en avant,
- * choisie selon le résultat (beaucoup d'erreurs → relire la fiche du chapitre le plus raté ; quelques erreurs →
+ * choisie selon le résultat (beaucoup d'erreurs → relire le cours du chapitre le plus raté ; quelques erreurs →
  * les refaire ; sans faute → augmenter la difficulté avec le minuteur, puis la série).
  *
  * @return array{action: string, titre: string, texte: string, chapitre?: string}
- *         action : rejouer | fiche | erreurs | minuteur | serie
+ *         action : rejouer | cours | erreurs | minuteur | serie
  */
 function prochaineEtape(array $partie, array $bilan): array
 {
@@ -534,10 +534,10 @@ function prochaineEtape(array $partie, array $bilan): array
         $faible = chapitreLePlusFaible($bilan['par_chapitre']);
         if ($faible !== null) {
             return [
-                'action' => 'fiche',
+                'action' => 'cours',
                 'chapitre' => $faible,
-                'titre' => 'Relis la fiche « ' . (TITRES[$faible] ?? $faible) . ' »',
-                'texte' => "C'est le chapitre le plus raté de cette partie : relis ses réponses expliquées, puis refais tes erreurs.",
+                'titre' => 'Relis le cours « ' . (TITRES[$faible] ?? $faible) . ' »',
+                'texte' => "C'est le chapitre le plus raté de cette partie : reprends la leçon (quelques minutes), puis refais tes erreurs.",
             ];
         }
     }

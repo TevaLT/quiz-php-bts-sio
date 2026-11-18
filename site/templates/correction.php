@@ -83,7 +83,11 @@ $sousTitre = match (true) {
             <h2>Explication</h2>
             <p><?= texteHtml($q['why']) ?></p>
             <?php if ($statut !== 'ok'): ?>
-                <p class="revoir">À revoir : <?= e(typographie(conseilRevision($q['ch']))) ?> — <a href="/fiches?ch=<?= e($q['ch']) ?>">fiche du chapitre</a></p>
+                <p class="revoir">
+                    À revoir : <a href="/cours?ch=<?= e($q['ch']) ?>">le cours « <?= e(TITRES[$q['ch']] ?? $q['ch']) ?> »</a>
+                    · <a href="/fiches?ch=<?= e($q['ch']) ?>">les fiches du chapitre</a>
+                    <?php if (isset(COURS_DU_CHAPITRE[$q['ch']])): ?><br><span class="discret">Support de référence : <?= e(typographie('« ' . COURS_DU_CHAPITRE[$q['ch']] . ' »')) ?></span><?php endif; ?>
+                </p>
             <?php endif; ?>
         </aside>
 

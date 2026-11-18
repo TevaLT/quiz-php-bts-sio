@@ -19,7 +19,7 @@ $examen = $partie['mode'] === 'examen';
 $nbErreurs = $bilan['ko'] + $bilan['passees'] + $bilan['temps'];
 $chrono = (int) ($partie['chrono'] ?? 0);
 $options = $partie['options'];
-// Cours à relire (chapitres adossés à un cours précis), sans doublon.
+// Supports de référence des chapitres à revoir (chapitres adossés à un support précis), sans doublon.
 $coursARelire = array_values(array_unique(array_filter(array_map(
     static fn ($ch): ?string => COURS_DU_CHAPITRE[(string) $ch] ?? null,
     $bilan['a_revoir']
@@ -87,8 +87,9 @@ $libelleRejouer = ($options['mode'] ?? '') === 'serie' ? 'Nouvelle série' : 'Re
                 default => null,
             };
             ?>
-            <?php if ($etape['action'] === 'fiche'): ?>
-                <a class="btn primaire" href="/fiches?ch=<?= e($etape['chapitre'] ?? '') ?>">Lire la fiche</a>
+            <?php if ($etape['action'] === 'cours'): ?>
+                <a class="btn primaire" href="/cours?ch=<?= e($etape['chapitre'] ?? '') ?>">Lire le cours</a>
+                <a class="btn" href="/fiches?ch=<?= e($etape['chapitre'] ?? '') ?>">Voir les fiches</a>
             <?php endif; ?>
             <?php if ($nbErreurs > 0 && $etape['action'] !== 'erreurs'): ?>
                 <?php $boutonErreurs(false); ?>
@@ -107,7 +108,7 @@ $libelleRejouer = ($options['mode'] ?? '') === 'serie' ? 'Nouvelle série' : 'Re
                 <?php foreach ($bilan['par_chapitre'] as $ch => $v): ?>
                     <?php $taux = (int) round(100 * $v['ok'] / $v['total']); ?>
                     <li>
-                        <span class="chap-nom"><span class="num"><?= e((string) $ch) ?></span> <a href="/fiches?ch=<?= e((string) $ch) ?>"><?= e(TITRES[$ch] ?? '') ?></a></span>
+                        <span class="chap-nom"><span class="num"><?= e((string) $ch) ?></span> <a href="/cours?ch=<?= e((string) $ch) ?>"><?= e(TITRES[$ch] ?? '') ?></a></span>
                         <?= barreSvg($taux, classeTaux($taux)) ?>
                         <span class="chap-score"><?= $v['ok'] ?>/<?= $v['total'] ?></span>
                     </li>
@@ -115,9 +116,9 @@ $libelleRejouer = ($options['mode'] ?? '') === 'serie' ? 'Nouvelle série' : 'Re
             </ul>
             <?php if ($bilan['a_revoir'] !== []): ?>
                 <p class="revoir">
-                    À relire : <?= implode(', ', array_map(static fn ($c): string => '<a href="/fiches?ch=' . e((string) $c) . '">fiche ' . e((string) $c) . '</a>', $bilan['a_revoir'])) ?>
+                    À relire : <?= implode(', ', array_map(static fn ($c): string => '<a href="/cours?ch=' . e((string) $c) . '">cours ' . e((string) $c) . '</a> (<a href="/fiches?ch=' . e((string) $c) . '">fiches</a>)', $bilan['a_revoir'])) ?>
                     <?php if ($coursARelire !== []): ?>
-                        <br>Cours concernés : <?= e(typographie(implode(' ; ', array_map(static fn (string $c): string => '« ' . $c . ' »', $coursARelire)))) ?>
+                        <br><span class="discret">Supports de référence : <?= e(typographie(implode(' ; ', array_map(static fn (string $c): string => '« ' . $c . ' »', $coursARelire)))) ?></span>
                     <?php endif; ?>
                 </p>
             <?php endif; ?>

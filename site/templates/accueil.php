@@ -13,6 +13,8 @@
  * @var int $record                       meilleure série de l'historique
  * @var array|null $partie
  * @var list<array{ch:string,titre:string,taux:int,essais:int}> $fragiles   chapitres à consolider (historique)
+ * @var string|null $conseille            prochain chapitre conseillé du cours (null : tout est validé)
+ * @var array|null $coursConseille        leçon de ce chapitre (durée de lecture), ou null
  */
 $coche = static fn (bool $condition): string => $condition ? ' checked' : '';
 $choisis = array_map('strval', $valeurs['chapitres']);
@@ -90,6 +92,28 @@ $detailTuile = static function (array $chapitresBloc) use ($choisis, $comptes): 
                 <button class="lien" type="submit">Terminer la partie en cours</button>
             </form>
         <?php endif; ?>
+    </div>
+</section>
+
+<section class="carte apprendre" aria-labelledby="titre-apprendre">
+    <span class="tuile-icone" aria-hidden="true"><?= e($conseille !== null ? ICONES_BLOCS[blocDuChapitre($conseille)] ?? '' : '{ }') ?></span>
+    <div>
+        <?php if ($conseille === null): ?>
+            <h2 id="titre-apprendre">Le cours : tous les chapitres sont validés</h2>
+            <p class="discret"><?= count(TITRES) ?> leçons à relire quand tu veux, du premier <code>echo</code> à l'API sécurisée.</p>
+        <?php else: ?>
+            <h2 id="titre-apprendre"><?= $nbSessions === 0 ? 'Tu débutes ? Commence par le cours' : 'Continue le cours' ?></h2>
+            <p class="discret">
+                Chapitre conseillé : <span class="num"><?= e($conseille) ?></span> <?= e(TITRES[$conseille]) ?>
+                <?= $coursConseille !== null ? '· ' . (int) $coursConseille['minutes'] . ' min de lecture, ' : '· ' ?>puis un test de 10 questions.
+            </p>
+        <?php endif; ?>
+    </div>
+    <div class="actions">
+        <?php if ($conseille !== null && $coursConseille !== null): ?>
+            <a class="btn<?= $nbSessions === 0 ? ' primaire' : '' ?>" href="/cours?ch=<?= e($conseille) ?>">Lire le chapitre <?= e($conseille) ?></a>
+        <?php endif; ?>
+        <a class="btn" href="/cours">Sommaire du cours</a>
     </div>
 </section>
 
@@ -235,7 +259,7 @@ $detailTuile = static function (array $chapitresBloc) use ($choisis, $comptes): 
             <div class="reglage">
                 <label class="interrupteur">
                     <input type="checkbox" name="cours" value="1"<?= $coche($valeurs['cours']) ?>>
-                    <span>Seulement les questions tirées des cours <span class="discret">(<?= (int) $nbCours ?>)</span></span>
+                    <span>Seulement les questions tirées des supports de référence <span class="discret">(<?= (int) $nbCours ?>)</span></span>
                 </label>
             </div>
 
@@ -267,6 +291,7 @@ $detailTuile = static function (array $chapitresBloc) use ($choisis, $comptes): 
         <li><strong>Des questions neuves</strong> : un nouveau tirage à chaque partie, dans un ordre mélangé ; les questions de la partie précédente sont presque exclues, tes erreurs reviennent plus souvent<?= $nbSessions > 0 ? ' (' . (int) $nbSessions . ' partie(s) déjà enregistrée(s))' : '' ?>.</li>
         <li><strong>Des questions générées</strong> : environ une sur quatre a des valeurs neuves (code à lire, calcul, sortie d'un programme), et sa réponse est calculée par PHP.</li>
         <li><strong>Le minuteur</strong> est vérifié par le serveur : recharger la page ne le remet pas à zéro, et une réponse arrivée trop tard ne compte pas.</li>
+        <li><strong>Le cours</strong> explique chaque notion du quiz, du premier <code>echo</code> à l'API sécurisée, en <?= count(TITRES) ?> chapitres ; chacun se termine par un test de 10 questions.</li>
         <li><strong>Les fiches</strong> rassemblent toutes les réponses expliquées, chapitre par chapitre, avec une recherche par mot-clé.</li>
     </ul>
 </details>

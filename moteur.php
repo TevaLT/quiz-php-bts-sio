@@ -24,6 +24,9 @@ if (!defined('FICHIER_HISTORIQUE')) {
 }
 const DOSSIER_BANQUE = __DIR__ . '/banque';
 
+/** Le cours : un fichier par chapitre (cours/NN-nom.md), au format décrit dans cours/README.md. */
+const DOSSIER_COURS = __DIR__ . '/cours';
+
 /** Cache de la banque analysée (fichier PHP généré, servi par OPcache) : utilisé par le site, jamais versionné. */
 const DOSSIER_CACHE = __DIR__ . '/cache';
 

@@ -5,6 +5,8 @@
 Un quiz pour apprendre et réviser PHP : bases du langage, programmation orientée objet, web et sécurité, bases de données
 avec PDO, Composer, MVC, API REST et JWT — et JavaScript (fondamentaux, objets et JSON, DOM, asynchrone avec `fetch`).
 
+- **un cours complet** : 28 leçons (environ 4 h de lecture), du premier `echo` à l'API sécurisée par JWT, chacune suivie
+  d'un test de 10 questions ;
 - **781 questions** réparties en **28 chapitres**, plus **50 générateurs** qui fabriquent des questions aux valeurs neuves
   (sortie d'un code, logique booléenne, `match`, exceptions, objets, `$_GET`, `filter_var`, dates, JSON, boucle d'événements JS…) ;
 - **des questions sur le langage**, pas sur le contenu des exercices de TP ;
@@ -36,9 +38,11 @@ Au programme :
   première erreur, avec ton record) et **révision** de tes erreurs ;
 - un **minuteur** par question (15 à 90 s) vérifié par le serveur : recharger la page ne le remet pas à zéro, une réponse
   hors délai ne compte pas ;
+- un **cours** en 28 chapitres (objectifs, explications, exemples de code, pièges, « À retenir ») qui suit le programme du
+  quiz, avec le prochain chapitre conseillé selon tes résultats ;
 - des **fiches de révision** par chapitre (toutes les réponses expliquées) et une recherche par mot-clé ;
-- une correction expliquée (« Ta réponse », « Bonne réponse ») avec le chapitre, le cours et la fiche à relire, et un bilan
-  qui conseille la prochaine étape (relire une fiche, refaire ses erreurs, ajouter le minuteur, tenter une série) ;
+- une correction expliquée (« Ta réponse », « Bonne réponse ») avec la leçon et la fiche à relire, et un bilan
+  qui conseille la prochaine étape (relire le cours, refaire ses erreurs, ajouter le minuteur, tenter une série) ;
 - des statistiques avec graphique de progression et records, un thème clair ou sombre, des raccourcis clavier et du code coloré.
 
 ### Dans le terminal
@@ -56,7 +60,7 @@ php quiz.php --aide          # toutes les options
 | `--n=30` | nombre de questions (20 par défaut) |
 | `--chap=03,12-15` | limiter à certains chapitres (listes et intervalles, de 00 à 27) |
 | `--bloc=2` | un seul bloc : 1 bases · 2 objet · 3 web · 4 données · 5 architecture et API · 6 JavaScript |
-| `--cours` | uniquement les questions tirées des cours |
+| `--cours` | uniquement les questions tirées des supports de référence (voir `SOURCES.md`) |
 | `--examen` | aucune correction pendant la partie, bilan complet à la fin |
 | `--serie` | enchaîne les questions jusqu'à la première erreur (50 au plus) |
 | `--chrono=30` | secondes accordées par question : une réponse plus lente compte comme une erreur |
@@ -91,6 +95,11 @@ une réponse libre. `s` passe la question, `q` quitte (`/s` et `/q` pendant une 
    la même opération.
 5. **Types variés** : choix unique, cases multiples, réponse libre (casse, accents et espaces tolérés).
 
+## Le cours
+
+Une leçon par chapitre, en Markdown simplifié, dans [`cours/`](cours) ; le format et les règles de rédaction sont
+décrits dans [`cours/README.md`](cours/README.md). Le site les affiche sur <http://localhost:8000/cours>.
+
 ## Ajouter des questions
 
 Les questions sont de simples fichiers texte dans [`banque/`](banque) ; le format est décrit dans
@@ -107,7 +116,7 @@ dès qu'un fichier de `banque/` change.
 
 ```bash
 php quiz.php --verifier            # banque de questions et générateurs (300 tirages par générateur)
-php site/tests/partie_test.php     # logique : parties, minuteur, série, fiches, statistiques, coloration du code, graphique
+php site/tests/partie_test.php     # logique : parties, minuteur, série, fiches, cours, statistiques, coloration, graphique
 php site/tests/http_test.php       # site de bout en bout : vrai serveur, cookies, CSRF, statuts HTTP, cache des ressources
 ```
 
@@ -121,14 +130,16 @@ quiz.php            interface terminal
 moteur.php          moteur partagé : banque (et son cache), tirage pondéré, correction, historique, séries
 generateurs.php     questions à valeurs aléatoires (réponses calculées)
 banque/             questions, en fichiers texte
+cours/              le cours : une leçon par chapitre (Markdown simplifié)
 site/               interface web (voir site/README.md)
 cache/              banque analysée pour le site (généré, non versionné)
 ```
 
 ## Sources et licences
 
-- Les chapitres 23 à 26 et les questions « tirées des cours » s'appuient sur les cours de **Térence FERUT**
+- Les chapitres 23 à 26 et les questions « tirées des supports de référence » s'appuient sur les cours de **Térence FERUT**
   (AstroWare Conception), publiés sous licence [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.fr).
   Détail et autres sources : [`SOURCES.md`](SOURCES.md).
 - **Code** (moteur, terminal, site) : licence [MIT](LICENSE).
 - **Banque de questions** (`banque/`) : [CC BY-SA 4.0](banque/LICENSE), comme les cours dont elle s'inspire.
+- **Cours** (`cours/`) : textes originaux, [CC BY-SA 4.0](cours/LICENSE).

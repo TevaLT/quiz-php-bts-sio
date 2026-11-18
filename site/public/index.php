@@ -57,6 +57,7 @@ $routes = [
     '/bilan' => ['GET' => 'pageBilan'],
     '/erreurs' => ['POST' => 'actionRefaireErreurs'],
     '/stats' => ['GET' => 'pageStats'],
+    '/cours' => ['GET' => 'pageCours'],
     '/fiches' => ['GET' => 'pageFiches'],
     '/sources' => ['GET' => 'pageSources'],
     '/reinitialiser' => ['GET' => 'pageReinitialiser', 'POST' => 'actionReinitialiser'],

@@ -518,7 +518,7 @@ function aide(): void
       --n={$defaut}               nombre de questions (défaut {$defaut})
       --chap=03,12-15      limiter à certains chapitres (listes et intervalles, 00 à 27)
       --bloc=2             1 bases · 2 objet · 3 web · 4 données · 5 architecture et API · 6 JavaScript
-      --cours              uniquement les questions tirées des cours (étiquette [cours])
+      --cours              uniquement les questions tirées des supports de référence (étiquette [cours])
       --examen             pas de correction pendant la session, bilan à la fin
       --serie              enchaîne les questions jusqu'à la première erreur (50 au plus)
       --chrono=30          secondes accordées par question (réponse hors délai = fausse)
@@ -598,7 +598,7 @@ function menu(array &$o, array $histo, array $statiques): bool
     Terminal::ligne('   3) Mode examen (correction à la fin)');
     Terminal::ligne('   4) Mode série : jusqu\'à la première erreur' . ($record > 0 ? " (record : $record)" : ''));
     Terminal::ligne("   5) Réviser mes erreurs ($aRevoir à revoir)");
-    Terminal::ligne('   6) Uniquement les questions tirées des cours');
+    Terminal::ligne('   6) Uniquement les questions tirées des supports de référence');
     Terminal::ligne('   7) Mes statistiques');
     Terminal::ligne('   q) Quitter');
     Terminal::ligne();

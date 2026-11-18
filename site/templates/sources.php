@@ -21,7 +21,7 @@ $coursFerut = [
             architecture MVC, API REST, JWT) et JavaScript, au niveau du BTS SIO option SLAM.
         </p>
         <p>
-            Les chapitres 23 à 26 et les questions « tirées des cours » s'appuient sur les cours de
+            Les chapitres 23 à 26 et les questions « tirées des supports de référence » s'appuient sur les cours de
             <strong>Térence FERUT</strong> (AstroWare Conception), publiés sous licence
             <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="license">CC BY-SA 4.0</a> :
         </p>
@@ -41,10 +41,24 @@ $coursFerut = [
         </p>
     </section>
 
+    <section class="carte" aria-labelledby="titre-cours-site">
+        <h2 id="titre-cours-site">D'où vient le cours</h2>
+        <p>
+            Les <?= count(TITRES) ?> leçons de la rubrique <a href="/cours">Cours</a> sont des textes originaux, écrits pour ce quiz :
+            elles expliquent le langage et ses outils avec des exemples génériques, sans reproduire le texte des supports
+            ci-dessus ni les exercices de TP. Les résultats annoncés (sorties de code, messages d'erreur) ont été vérifiés
+            avec PHP et Node.js. Quand un chapitre s'appuie sur un support de référence, la correction et les fiches le citent.
+        </p>
+    </section>
+
     <section class="carte" aria-labelledby="titre-licences">
         <h2 id="titre-licences">Licences</h2>
         <ul>
             <li><strong>Code</strong> (moteur, quiz en terminal, site web) : licence MIT.</li>
+            <li>
+                <strong>Cours</strong> (dossier <code>cours/</code>) :
+                <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="license">CC BY-SA 4.0</a>, comme la banque de questions.
+            </li>
             <li>
                 <strong>Banque de questions</strong> (dossier <code>banque/</code>) :
                 <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="license">CC BY-SA 4.0</a>, comme les cours dont elle s'inspire.

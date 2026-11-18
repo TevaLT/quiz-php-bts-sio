@@ -205,6 +205,34 @@ verifier('fiches : recherche par mot-clé', [$recherche['statut'], str_contains(
 $piegeRecherche = requete('GET', '/fiches?q=' . rawurlencode('<script>alert(1)</script>'));
 verifier('fiches : la recherche est échappée', [$piegeRecherche['statut'], str_contains($piegeRecherche['corps'], '<script>alert(1)</script>')], [200, false]);
 verifier('fiches : chapitre inconnu ou falsifié → 404', [requete('GET', '/fiches?ch=99')['statut'], requete('GET', '/fiches?ch[]=05')['statut']], [404, 404]);
+verifier('fiches : lien vers la leçon du chapitre', str_contains($fiche['corps'], 'href="/cours?ch=08"'), true);
+
+// ───── Cours ─────
+verifier('en-tête : lien « Cours »', str_contains($accueil['corps'], '<a href="/cours">Cours</a>'), true);
+verifier('accueil : carte « Apprendre » qui conseille le premier chapitre', [str_contains($accueil['corps'], 'class="carte apprendre"'), str_contains($accueil['corps'], 'href="/cours?ch=00"')], [true, true]);
+$sommaireCours = requete('GET', '/cours');
+controlerPage($sommaireCours);
+verifier('cours : sommaire des 28 leçons, lien actif dans le menu', [$sommaireCours['statut'], substr_count($sommaireCours['corps'], 'class="lien-cours" href="/cours?ch='), str_contains($sommaireCours['corps'], '<a href="/cours" aria-current="page">Cours</a>')], [200, 28, true]);
+verifier('cours : sans historique, on commence par le chapitre 00', [str_contains($sommaireCours['corps'], 'Commencer le cours'), str_contains($sommaireCours['corps'], '<li class="conseille">')], [true, true]);
+$lecon = requete('GET', '/cours?ch=08');
+controlerPage($lecon);
+verifier('cours : une leçon (titre, plan de la page, code coloré, encadrés)', [
+    $lecon['statut'], str_contains($lecon['corps'], 'Classes et objets'), str_contains($lecon['corps'], 'class="sommaire-lecon"'),
+    str_contains($lecon['corps'], '<div class="bloc-code" data-langue="PHP"><pre class="code"><code><span class="c-'), str_contains($lecon['corps'], 'class="encadre encadre-retenir"'),
+], [200, true, true, true, true]);
+verifier('cours : chapitres voisins et test du chapitre en fin de leçon', [str_contains($lecon['corps'], 'href="/cours?ch=07" rel="prev"'), str_contains($lecon['corps'], 'href="/cours?ch=09" rel="next"'), str_contains($lecon['corps'], 'name="chapitres[]" value="08"')], [true, true, true]);
+verifier('cours : le thème garde la leçon affichée', str_contains($lecon['corps'], 'name="retour" value="/cours?ch=08"'), true);
+$leconJs = requete('GET', '/cours?ch=26');
+controlerPage($leconJs);
+// seuls vrais formulaires : le thème (en-tête) et « Teste-toi » ; le <form> des exemples est du texte coloré
+verifier('cours : le HTML montré dans les exemples est affiché, jamais interprété', [$leconJs['statut'], substr_count($leconJs['corps'], '<script'), substr_count($leconJs['corps'], '<form'), str_contains($leconJs['corps'], '<span class="c-tag">&lt;form</span>')], [200, 1, 2, true]);
+$premiere = requete('GET', '/cours?ch=00');
+$derniere = requete('GET', '/cours?ch=27');
+verifier('cours : pas de chapitre avant le premier ni après le dernier', [str_contains($premiere['corps'], 'rel="prev"'), str_contains($premiere['corps'], 'rel="next"'), str_contains($derniere['corps'], 'rel="prev"'), str_contains($derniere['corps'], 'rel="next"')], [false, true, true, false]);
+verifier('cours : chapitre inconnu ou falsifié → 404', [
+    requete('GET', '/cours?ch=99')['statut'], requete('GET', '/cours?ch[]=08')['statut'], requete('GET', '/cours?ch=8')['statut'], requete('GET', '/cours?ch=' . rawurlencode('../moteur'))['statut'],
+], [404, 404, 404, 404]);
+verifier('cours : POST refusé (405)', requete('POST', '/cours', ['csrf' => $csrf])['statut'], 405);
 
 // ───── Une partie complète (JavaScript), avec erreurs volontaires ─────
 $creation = requete('POST', '/partie', ['csrf' => $csrf, 'mode' => 'normal', 'n' => '5', 'chapitres' => ['24', '25', '26', '27'], 'graine' => '2024']);
@@ -244,7 +272,7 @@ for ($tour = 0; $tour < 10; $tour++) {
         $correction = requete('GET', '/correction');
         controlerPage($correction);
         if ($tour === 0) {
-            verifier('correction : 200 avec explication et conseil de révision', [$correction['statut'], str_contains($correction['corps'], 'Explication'), str_contains($correction['corps'], 'À revoir : chapitre 2')], [200, true, true]);
+            verifier('correction : 200 avec explication et conseil de révision', [$correction['statut'], str_contains($correction['corps'], 'Explication'), str_contains($correction['corps'], 'À revoir : <a href="/cours?ch=2')], [200, true, true]);
         }
     }
     $numeroPrecedent = $numero;
@@ -255,7 +283,7 @@ $bilan = requete('GET', '/bilan');
 controlerPage($bilan);
 verifier('bilan : 200', $bilan['statut'], 200);
 verifier('bilan : bouton « Refaire mes erreurs »', (bool) preg_match('/Refaire (mes \d+ erreurs|mon erreur)/', $bilan['corps']), true);
-verifier('bilan : cours à relire cités', str_contains($bilan['corps'], 'Cours concernés'), true);
+verifier('bilan : leçons à relire (et supports de référence) cités', [str_contains($bilan['corps'], 'À relire : <a href="/cours?ch=2'), str_contains($bilan['corps'], 'Supports de référence')], [true, true]);
 verifier('bilan : prochaine étape conseillée en tête', [str_contains($bilan['corps'], 'Et maintenant ?'), strpos($bilan['corps'], 'Et maintenant ?') < strpos($bilan['corps'], 'Détail des questions')], [true, true]);
 verifier('historique temporaire : une partie enregistrée', count(json_decode((string) @file_get_contents($fichierHisto), true)['sessions'] ?? []), 1);
 $accueilApres = requete('GET', '/');
@@ -326,7 +354,26 @@ verifier('thème : 303 vers la page d\'origine, cookie posé', [$theme['statut']
 $ouverte = requete('POST', '/theme', ['csrf' => $csrf, 'theme' => 'clair', 'retour' => 'https://exemple.invalid/']);
 verifier('thème : pas de redirection ouverte vers un autre site', entete($ouverte, 'Location'), '/');
 verifier('thème inconnu : 400', requete('POST', '/theme', ['csrf' => $csrf, 'theme' => 'rose'])['statut'], 400);
+verifier('thème : retour sur la leçon en cours, chapitre revalidé', [
+    entete(requete('POST', '/theme', ['csrf' => $csrf, 'theme' => 'clair', 'retour' => '/cours?ch=08']), 'Location'),
+    entete(requete('POST', '/theme', ['csrf' => $csrf, 'theme' => 'clair', 'retour' => '/cours?ch=99']), 'Location'),
+    entete(requete('POST', '/theme', ['csrf' => $csrf, 'theme' => 'clair', 'retour' => '/stats?ch=08']), 'Location'),
+], ['/cours?ch=08', '/cours', '/stats']);
 verifier('le thème choisi est appliqué', str_contains(requete('GET', '/sources')['corps'], 'data-theme="clair"'), true);
+
+// ───── « Teste-toi » à la fin d'une leçon : 10 questions sur ce seul chapitre ─────
+preg_match('~<section class="carte teste-toi".*?</form>~s', requete('GET', '/cours?ch=09')['corps'], $formulaireTest);
+preg_match_all('~<input type="hidden" name="([^"]+)" value="([^"]*)">~', $formulaireTest[0] ?? '', $champsTest, PREG_SET_ORDER);
+$envoiTest = [];
+foreach ($champsTest as [, $nom, $valeur]) {
+    $nom === 'chapitres[]' ? $envoiTest['chapitres'][] = $valeur : $envoiTest[$nom] = $valeur;
+}
+verifier('cours : le formulaire « Teste-toi » envoie le chapitre, 10 questions et le jeton', [$envoiTest['chapitres'] ?? null, $envoiTest['n'] ?? null, strlen($envoiTest['csrf'] ?? '')], [['09'], '10', 64]);
+$test = requete('POST', '/partie', $envoiTest);
+verifier('cours : « Teste-toi » lance la partie (303 vers /question)', [$test['statut'], entete($test, 'Location')], [303, '/question']);
+$questionTest = requete('GET', '/question');
+controlerPage($questionTest);
+verifier('cours : la partie porte sur le chapitre de la leçon', [$questionTest['statut'], str_contains($questionTest['corps'], 'Héritage et polymorphisme'), str_contains($questionTest['corps'], 'sur 10')], [200, true, true]);
 
 // ───── Partie rapide : un préréglage qui ne remplace pas les réglages par défaut de l'accueil ─────
 $champsRapides = ['csrf' => $csrf, 'mode' => 'normal', 'n' => '10', 'chrono' => '0', 'rapide' => '1', 'chapitres' => array_map(static fn (int $i): string => sprintf('%02d', $i), range(0, 27))];

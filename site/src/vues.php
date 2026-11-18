@@ -59,6 +59,110 @@ function etiquetteChoix(bool $correcte, bool $choisie): string
 /** Petit symbole « code » de chaque bloc de chapitres (tuiles de l'accueil). */
 const ICONES_BLOCS = [1 => '$x', 2 => 'new', 3 => 'GET', 4 => 'SQL', 5 => 'API', 6 => 'JS'];
 
+// ───────────────────────────── Cours ─────────────────────────────
+
+/** Titres par défaut des encadrés du cours (« > [!retenir] » …) ; un genre inconnu devient une simple note. */
+const ENCADRES_COURS = [
+    'objectifs' => 'Ce que tu vas apprendre',
+    'retenir' => 'À retenir',
+    'attention' => 'Attention',
+    'astuce' => 'Astuce',
+    'exemple' => 'Exemple',
+    'note' => 'À noter',
+];
+
+/** Langages affichés au-dessus des blocs de code du cours. */
+const LANGAGES_COURS = ['php' => 'PHP', 'js' => 'JavaScript', 'sql' => 'SQL', 'html' => 'HTML', 'bash' => 'Terminal', 'json' => 'JSON', 'http' => 'HTTP', 'text' => 'Texte'];
+
+/**
+ * Texte d'un cours → HTML : tout est échappé, puis seuls `code`, **gras**, *italique* et [liens](…) sont mis en forme.
+ * Un lien n'est accepté que vers une page du site (/…) ou une adresse https:// ; les autres restent du texte.
+ * Un long extrait de code peut passer à la ligne (classe « long ») ; un court reste d'un seul tenant.
+ */
+function texteCours(string $texte): string
+{
+    $motif = '~`([^`]+)`|\[([^\]]+)\]\((/(?!/)[^)\s]*|https://[^)\s]+)\)|\*\*(.+?)\*\*|(?<![\w*])\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?![\w*])~u';
+    if (preg_match_all($motif, $texte, $trouves, PREG_SET_ORDER | PREG_OFFSET_CAPTURE | PREG_UNMATCHED_AS_NULL) === false) {
+        return e($texte);
+    }
+    $texteSimple = static fn (string $t): string => e(typographie($t));
+    $html = '';
+    $position = 0;
+    foreach ($trouves as $m) {
+        [$brut, $debut] = $m[0];
+        $html .= $texteSimple(substr($texte, $position, $debut - $position));
+        if ($m[1][0] !== null) {
+            $html .= '<code' . (mb_strlen($m[1][0]) > 30 ? ' class="long"' : '') . '>' . e($m[1][0]) . '</code>';
+        } elseif ($m[2][0] !== null) {
+            $externe = str_starts_with((string) $m[3][0], 'https://');
+            $html .= '<a href="' . e($m[3][0]) . '"' . ($externe ? ' rel="noopener noreferrer"' : '') . '>' . $texteSimple($m[2][0]) . '</a>';
+        } elseif ($m[4][0] !== null) {
+            $html .= '<strong>' . texteCours($m[4][0]) . '</strong>';
+        } else {
+            $html .= '<em>' . texteCours((string) $m[5][0]) . '</em>';
+        }
+        $position = $debut + strlen($brut);
+    }
+
+    return $html . $texteSimple(substr($texte, $position));
+}
+
+/** Bloc de code du cours : coloré comme dans le quiz, avec le nom du langage (app.js ajoute un bouton « Copier »). */
+function blocCodeHtml(string $code, string $langue): string
+{
+    $langue = isset(LANGAGES_COURS[$langue]) ? $langue : 'text';
+    $contenu = in_array($langue, ['bash', 'text', 'http'], true) ? e($code) : colorerCode($code);
+
+    return '<div class="bloc-code" data-langue="' . e(LANGAGES_COURS[$langue]) . '"><pre class="code"><code>' . $contenu . '</code></pre></div>';
+}
+
+/**
+ * Blocs d'un cours (analyserCours()) → HTML sûr.
+ *
+ * @param list<array<string,mixed>> $blocs
+ */
+function coursHtml(array $blocs): string
+{
+    $html = '';
+    foreach ($blocs as $bloc) {
+        $html .= match ($bloc['type']) {
+            'h2', 'h3' => '<' . $bloc['type'] . ' id="' . e($bloc['id'] ?? '') . '">' . texteCours($bloc['texte']) . '</' . $bloc['type'] . '>',
+            'p' => '<p>' . texteCours($bloc['texte']) . '</p>',
+            'ul', 'ol' => '<' . $bloc['type'] . '>' . implode('', array_map(static fn (string $el): string => '<li>' . texteCours($el) . '</li>', $bloc['elements'])) . '</' . $bloc['type'] . '>',
+            'code' => blocCodeHtml($bloc['texte'], $bloc['langue']),
+            'encadre' => encadreHtml($bloc),
+            'tableau' => tableauCoursHtml($bloc),
+            default => '',
+        };
+    }
+
+    return $html;
+}
+
+/** @param array<string,mixed> $bloc */
+function encadreHtml(array $bloc): string
+{
+    $genre = isset(ENCADRES_COURS[$bloc['genre']]) ? $bloc['genre'] : 'note';
+    $titre = $bloc['titre'] !== '' ? $bloc['titre'] : ENCADRES_COURS[$genre];
+
+    return '<aside class="encadre encadre-' . e($genre) . '"><p class="encadre-titre">' . texteCours($titre) . '</p>' . coursHtml($bloc['blocs']) . '</aside>';
+}
+
+/** @param array<string,mixed> $bloc */
+function tableauCoursHtml(array $bloc): string
+{
+    $html = '<div class="defilement"><table class="tableau tableau-cours">';
+    if ($bloc['entete'] !== []) {
+        $html .= '<thead><tr>' . implode('', array_map(static fn (string $c): string => '<th scope="col">' . texteCours($c) . '</th>', $bloc['entete'])) . '</tr></thead>';
+    }
+    $html .= '<tbody>';
+    foreach ($bloc['lignes'] as $ligne) {
+        $html .= '<tr>' . implode('', array_map(static fn (string $c): string => '<td>' . texteCours($c) . '</td>', $ligne)) . '</tr>';
+    }
+
+    return $html . '</tbody></table></div>';
+}
+
 // ───────────────────────────── Coloration syntaxique ─────────────────────────────
 
 /** Mots-clés colorés : PHP et JavaScript, puis SQL (en majuscules seulement, pour ne pas colorer du texte ordinaire). */

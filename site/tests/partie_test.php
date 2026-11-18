@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Tests de la logique du site (partie.php, stats.php, vues.php + moteur partagé).
+ * Tests de la logique du site (partie.php, stats.php, fiches.php, cours.php, vues.php + moteur partagé).
  * Aucun serveur, aucune session, aucun fichier écrit : ce sont des fonctions pures.
  *
  *   php site/tests/partie_test.php     (depuis la racine du dépôt)
@@ -15,6 +15,7 @@ require dirname(__DIR__) . '/src/vues.php';
 require dirname(__DIR__) . '/src/partie.php';
 require dirname(__DIR__) . '/src/stats.php';
 require dirname(__DIR__) . '/src/fiches.php';
+require dirname(__DIR__) . '/src/cours.php';
 
 $total = 0;
 $echecs = 0;
@@ -247,7 +248,7 @@ $bilanFictif = static fn (array $parChapitre, int $ko, int $total, int $ok): arr
 verifier('chapitre le plus raté (à égalité de taux : le plus d\'erreurs)', chapitreLePlusFaible(['03' => ['ok' => 1, 'total' => 2], 12 => ['ok' => 2, 'total' => 4], '05' => ['ok' => 3, 'total' => 3]]), '12');
 verifier('chapitre le plus raté : aucun si tout est juste', chapitreLePlusFaible(['03' => ['ok' => 2, 'total' => 2]]), null);
 $etape = static fn (array $partie, array $bilan): string => prochaineEtape($partie, $bilan)['action'];
-verifier('prochaine étape : beaucoup d\'erreurs → relire la fiche du chapitre le plus raté', [$etape($avecResultats([]), $bilanFictif(['07' => ['ok' => 0, 'total' => 3], '02' => ['ok' => 1, 'total' => 2]], 4, 5, 1)), prochaineEtape($avecResultats([]), $bilanFictif(['07' => ['ok' => 0, 'total' => 3], '02' => ['ok' => 1, 'total' => 2]], 4, 5, 1))['chapitre']], ['fiche', '07']);
+verifier('prochaine étape : beaucoup d\'erreurs → relire le cours du chapitre le plus raté',[$etape($avecResultats([]), $bilanFictif(['07' => ['ok' => 0, 'total' => 3], '02' => ['ok' => 1, 'total' => 2]], 4, 5, 1)), prochaineEtape($avecResultats([]), $bilanFictif(['07' => ['ok' => 0, 'total' => 3], '02' => ['ok' => 1, 'total' => 2]], 4, 5, 1))['chapitre']], ['cours', '07']);
 verifier('prochaine étape : quelques erreurs → les refaire', $etape($avecResultats([]), $bilanFictif(['02' => ['ok' => 4, 'total' => 5]], 1, 5, 4)), 'erreurs');
 verifier('prochaine étape : sans faute → ajouter le minuteur, puis tenter une série', [
     $etape($avecResultats([]), $bilanFictif(['02' => ['ok' => 5, 'total' => 5]], 0, 5, 5)),
@@ -347,6 +348,160 @@ $piege = graphiqueProgression(progressionParties([
 verifier('graphique : données échappées (aucune injection possible)', str_contains($piege, '<script'), false);
 verifier('date affichée au format français', formaterDate('2026-11-06 14:43'), '06/11/2026 14:43');
 
+// ───── le cours : lecture du Markdown simplifié ─────
+$exemple = analyserCours(<<<'MD'
+    ---
+    resume: Un résumé.
+    ---
+
+    > [!objectifs]
+    > - savoir faire
+    >   sur deux lignes
+
+    ## Première partie
+
+    Une ligne
+    et sa suite, avec `<?= $x ?>` et **du gras**.
+
+    ### Exemple
+
+    1. un
+    2. deux
+
+    ```php
+    echo '<b>';
+    ```
+
+    ## Exemple
+
+    | Opérateur | Rôle |
+    |---|---|
+    | `a \|\| b` | OU |
+    | `!` | NON |
+
+    > [!inconnu] Titre libre
+    > Texte de la note.
+    MD);
+verifier('cours : en-tête (résumé)', $exemple['meta'], ['resume' => 'Un résumé.']);
+verifier('cours : sommaire = titres de niveau 2, ancres uniques', $exemple['sommaire'], [['id' => 'premiere-partie', 'texte' => 'Première partie'], ['id' => 'exemple-2', 'texte' => 'Exemple']]);
+verifier('cours : types des blocs, dans l\'ordre', array_column($exemple['blocs'], 'type'), ['encadre', 'h2', 'p', 'h3', 'ol', 'code', 'h2', 'tableau', 'encadre']);
+verifier('cours : un paragraphe réunit les lignes consécutives', $exemple['blocs'][2]['texte'], 'Une ligne et sa suite, avec `<?= $x ?>` et **du gras**.');
+verifier('cours : encadré (genre, liste prolongée par une ligne indentée)', [$exemple['blocs'][0]['genre'], $exemple['blocs'][0]['blocs'][0]['elements']], ['objectifs', ['savoir faire sur deux lignes']]);
+verifier('cours : bloc de code conservé tel quel, avec sa langue', [$exemple['blocs'][5]['langue'], $exemple['blocs'][5]['texte']], ['php', "echo '<b>';"]);
+verifier('cours : tableau (en-tête, barre échappée « \| »)', [$exemple['blocs'][7]['entete'], $exemple['blocs'][7]['lignes']], [['Opérateur', 'Rôle'], [['`a || b`', 'OU'], ['`!`', 'NON']]]);
+verifier('cours : durée de lecture d\'au moins une minute', $exemple['minutes'], 1);
+
+$html = coursHtml($exemple['blocs']);
+verifier('cours (HTML) : code en ligne échappé', str_contains($html, '<code>&lt;?= $x ?&gt;</code>'), true);
+verifier('cours (HTML) : gras', str_contains($html, '<strong>du gras</strong>'), true);
+verifier('cours (HTML) : titres avec ancre', str_contains($html, '<h2 id="premiere-partie">Première partie</h2>') && str_contains($html, '<h3 id="exemple">Exemple</h3>'), true);
+verifier('cours (HTML) : bloc de code coloré et étiqueté', str_contains($html, '<div class="bloc-code" data-langue="PHP"><pre class="code"><code><span class="c-kw">echo</span>'), true);
+verifier('cours (HTML) : en-têtes de tableau', substr_count($html, '<th scope="col">'), 2);
+verifier('cours (HTML) : un genre d\'encadré inconnu devient une note, avec son titre', str_contains($html, '<aside class="encadre encadre-note"><p class="encadre-titre">Titre libre</p>'), true);
+verifier('cours (HTML) : un genre connu prend son titre par défaut', str_contains($html, '<p class="encadre-titre">Ce que tu vas apprendre</p>'), true);
+verifier('cours (HTML) : le code Terminal n\'est pas coloré', blocCodeHtml('php -S localhost:8000 # serveur', 'bash'), '<div class="bloc-code" data-langue="Terminal"><pre class="code"><code>php -S localhost:8000 # serveur</code></pre></div>');
+verifier('cours (HTML) : langue inconnue → texte brut', str_contains(blocCodeHtml('x', 'cobol'), 'data-langue="Texte"'), true);
+verifier('cours (texte) : tout le HTML est échappé', texteCours('<script>alert(1)</script> & co'), '&lt;script&gt;alert(1)&lt;/script&gt; &amp; co');
+verifier('cours (texte) : lien interne', texteCours('voir [les fiches](/fiches?ch=05)'), 'voir <a href="/fiches?ch=05">les fiches</a>');
+verifier('cours (texte) : lien externe en https, sans transmettre l\'origine', texteCours('[doc](https://www.php.net/)'), '<a href="https://www.php.net/" rel="noopener noreferrer">doc</a>');
+verifier('cours (texte) : liens dangereux laissés en texte', [texteCours('[x](javascript:alert(1))'), texteCours('[x](//pirate.exemple)'), texteCours('[x](http://exemple.fr)')], ['[x](javascript:alert(1))', '[x](//pirate.exemple)', '[x](http://exemple.fr)']);
+verifier('cours (texte) : pas de gras ni de lien dans le code en ligne', texteCours('`**a** [b](/c)`'), '<code>**a** [b](/c)</code>');
+verifier('cours (texte) : code dans du gras', texteCours('**`null`**'), '<strong><code>null</code></strong>');
+verifier('cours (texte) : italique, mais pas une multiplication', [texteCours('une valeur *falsy*'), texteCours('2 * 3 * 4'), texteCours('a*b*c')], ['une valeur <em>falsy</em>', '2 * 3 * 4', 'a*b*c']);
+verifier('cours (texte) : un long extrait de code peut passer à la ligne', [texteCours('`' . str_repeat('a', 31) . '`'), texteCours('`?>`')], ['<code class="long">' . str_repeat('a', 31) . '</code>', '<code>?&gt;</code>']);
+verifier('cours (texte) : guillemets français insécables', texteCours('« Bonjour »'), "«\u{00A0}Bonjour\u{00A0}»");
+
+// ───── le cours : les 28 chapitres ─────
+verifier('cours : un fichier par chapitre (et rien pour un chapitre inconnu)', [count(array_filter(array_keys(TITRES), static fn ($ch): bool => fichierCours(sprintf('%02d', (int) $ch)) !== null)), fichierCours('99'), fichierCours('5'), fichierCours('../moteur')], [count(TITRES), null, null, null]);
+$liste = listeCours();
+verifier('cours : le sommaire liste les 28 chapitres, tous rédigés et résumés', [array_keys($liste) === array_keys(TITRES), count(array_filter($liste, static fn (array $c): bool => $c['ecrit'] && $c['resume'] !== ''))], [true, count(TITRES)]);
+$parcourirBlocs = static function (array $blocs, callable $f) use (&$parcourirBlocs): void {
+    foreach ($blocs as $b) {
+        $f($b);
+        if ($b['type'] === 'encadre') {
+            $parcourirBlocs($b['blocs'], $f);
+        }
+    }
+};
+$defauts = [];
+$blocsCours = [];
+$minutesCours = 0;
+foreach (array_keys(TITRES) as $ch) {
+    $ch = sprintf('%02d', (int) $ch);
+    $cours = lireCours($ch);
+    $minutesCours += $cours['minutes'];
+    $genres = [];
+    $nbCode = 0;
+    if (count($cours['sommaire']) < 4) {
+        $defauts[] = "$ch : moins de 4 sections";
+    }
+    $parcourirBlocs($cours['blocs'], static function (array $b) use ($ch, &$genres, &$nbCode, &$defauts, &$blocsCours): void {
+        if ($b['type'] === 'encadre') {
+            $genres[] = $b['genre'];
+            if (!isset(ENCADRES_COURS[$b['genre']])) {
+                $defauts[] = "$ch : encadré « {$b['genre']} » inconnu";
+            }
+        }
+        if ($b['type'] === 'code') {
+            $nbCode++;
+            if (!isset(LANGAGES_COURS[$b['langue']])) {
+                $defauts[] = "$ch : langage « {$b['langue']} » inconnu";
+            }
+            if (!in_array($b['langue'], ['bash', 'text', 'http'], true)) {
+                $blocsCours[] = $b['texte'];
+            }
+        }
+        if ($b['type'] === 'tableau') {
+            foreach ($b['lignes'] as $ligne) {
+                if ($b['entete'] === [] || count($ligne) !== count($b['entete'])) {
+                    $defauts[] = "$ch : tableau irrégulier (" . implode(' | ', $ligne) . ')';
+                }
+            }
+        }
+        $textes = match ($b['type']) {
+            'p', 'h2', 'h3' => [$b['texte']],
+            'ul', 'ol' => $b['elements'],
+            'tableau' => array_merge($b['entete'], ...$b['lignes']),
+            default => [],
+        };
+        foreach ($textes as $t) {
+            $rendu = (string) preg_replace('~<code[^>]*>.*?</code>~s', '', texteCours($t));
+            if (str_contains($rendu, '*') || str_contains($rendu, '`')) {
+                $defauts[] = "$ch : mise en forme non interprétée : " . mb_strimwidth($t, 0, 60, '…');
+            }
+        }
+    });
+    if (!in_array('objectifs', $genres, true) || !in_array('retenir', $genres, true)) {
+        $defauts[] = "$ch : encadré « objectifs » ou « retenir » manquant";
+    }
+    if ($nbCode < 2) {
+        $defauts[] = "$ch : moins de 2 exemples de code";
+    }
+    if (class_exists(DOMDocument::class)) {
+        $document = new DOMDocument();
+        $precedent = libxml_use_internal_errors(true);
+        $document->loadXML('<div>' . coursHtml($cours['blocs']) . '</div>');   // e() ne produit que des entités XML
+        foreach (libxml_get_errors() as $erreurXml) {
+            $defauts[] = "$ch : HTML mal formé (" . trim($erreurXml->message) . ')';
+        }
+        libxml_clear_errors();
+        libxml_use_internal_errors($precedent);
+    }
+}
+verifier('cours : chaque chapitre a ses sections, ses exemples, ses encadrés, des tableaux réguliers et un HTML bien formé', $defauts, []);
+verifier('cours : quelques heures de lecture en tout', $minutesCours >= 120 && $minutesCours <= 480, true);
+verifier('cours : bloc d\'un chapitre', [blocDuChapitre('00'), blocDuChapitre('09'), blocDuChapitre('19'), blocDuChapitre('27')], [1, 2, 4, 6]);
+
+$tauxChapitres = static fn (array $taux): array => array_map(static fn (?int $t): array => ['taux' => $t], $taux + array_fill_keys(array_keys(TITRES), null));
+verifier('cours : chapitre conseillé (rien de testé → le premier)', chapitreConseille($tauxChapitres([])), '00');
+verifier('cours : chapitre conseillé (on avance après un chapitre réussi)', chapitreConseille($tauxChapitres(['00' => 90, '01' => 65])), '02');
+verifier('cours : chapitre conseillé (moins de 50 % → on le relit)', chapitreConseille($tauxChapitres(['00' => 90, '01' => 40])), '01');
+verifier('cours : chapitre conseillé (tout est validé → aucun)', chapitreConseille(array_map(static fn (): array => ['taux' => 80], TITRES)), null);
+verifier('thème : la page de retour garde le chapitre du cours ou des fiches, rien d\'autre', [
+    adresseRetour('/cours', '08'), adresseRetour('/fiches', '27'), adresseRetour('/cours', '99'), adresseRetour('/cours', ['08']),
+    adresseRetour('/stats', '08'), adresseRetour('https://pirate.exemple/', '08'), adresseRetour('/cours?ch=08'),
+], ['/cours?ch=08', '/fiches?ch=27', '/cours', '/cours', '/stats', '/', '/']);
+
 // ───── coloration syntaxique ─────
 verifier(
     'coloration : variable, fonction et commentaire',
@@ -369,7 +524,7 @@ foreach ($generateurs as [, $fabrique]) {
         $blocs[] = $extraireCode($fabrique());
     }
 }
-$blocs = array_values(array_filter($blocs, static fn (string $b): bool => $b !== ''));
+$blocs = array_values(array_filter([...$blocs, ...$blocsCours], static fn (string $b): bool => $b !== ''));
 $fideles = 0;
 $surs = 0;
 foreach ($blocs as $bloc) {
@@ -377,7 +532,7 @@ foreach ($blocs as $bloc) {
     $fideles += html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8') === $bloc ? 1 : 0;
     $surs += preg_match('/[<>]/', (string) preg_replace('~<span class="c-[a-z]+">|</span>~', '', $html)) === 0 ? 1 : 0;
 }
-verifier('coloration : le texte affiché est exactement le code (' . count($blocs) . ' blocs de la banque et des générateurs)', $fideles, count($blocs));
+verifier('coloration : le texte affiché est exactement le code (' . count($blocs) . ' blocs de la banque, des générateurs et du cours)', $fideles, count($blocs));
 verifier('coloration : aucune balise ajoutée en dehors de nos <span>', $surs, count($blocs));
 
 echo "\n";

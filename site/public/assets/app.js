@@ -497,6 +497,62 @@
         });
     });
 
+    // ── Cours : bouton « Copier » sur chaque bloc de code (seulement si le presse-papiers est accessible) ──
+    if (navigator.clipboard && window.isSecureContext) {
+        chaque(document.querySelectorAll('.bloc-code'), function (bloc) {
+            var code = bloc.querySelector('code');
+            if (!code) { return; }
+            var bouton = document.createElement('button');
+            var minuterie = null;
+            bouton.type = 'button';
+            bouton.className = 'copier-code';
+            bouton.textContent = 'Copier';
+            bouton.setAttribute('aria-label', 'Copier le code ' + (bloc.getAttribute('data-langue') || ''));
+            bouton.addEventListener('click', function () {
+                navigator.clipboard.writeText(code.textContent).then(function () {
+                    bouton.textContent = 'Copié ✓';
+                    bouton.classList.add('copie');
+                }, function () {
+                    bouton.textContent = 'Échec';
+                });
+                window.clearTimeout(minuterie);
+                minuterie = window.setTimeout(function () {
+                    bouton.textContent = 'Copier';
+                    bouton.classList.remove('copie');
+                }, 2000);
+            });
+            bloc.appendChild(bouton);
+        });
+    }
+
+    // ── Cours : le sommaire du chapitre suit la lecture (section affichée en surbrillance) ──
+    var sommaireLecon = document.querySelector('.sommaire-lecon');
+    if (sommaireLecon) {
+        var liensSommaire = tableau(sommaireLecon.querySelectorAll('a[href^="#"]'));
+        var sections = liensSommaire.map(function (lien) {
+            return document.getElementById(decodeURIComponent(lien.getAttribute('href').slice(1)));
+        });
+        var actif = null;
+        var enAttente = false;
+        var suivreLecture = function () {
+            enAttente = false;
+            var courant = null;
+            sections.forEach(function (section, i) {
+                if (section && section.getBoundingClientRect().top < window.innerHeight * 0.3) { courant = liensSommaire[i]; }
+            });
+            // tout en bas de la page, la dernière section est la section lue, même si elle est courte
+            if ((window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 4) { courant = liensSommaire[liensSommaire.length - 1]; }
+            if (courant === actif) { return; }
+            if (actif) { actif.removeAttribute('aria-current'); }
+            if (courant) { courant.setAttribute('aria-current', 'true'); }
+            actif = courant;
+        };
+        window.addEventListener('scroll', function () {
+            if (!enAttente) { enAttente = true; window.requestAnimationFrame(suivreLecture); }
+        }, { passive: true });
+        suivreLecture();
+    }
+
     // ── Double envoi : un formulaire ne part qu'une fois (double clic, impatience…) ──
     // Enregistré en dernier : les contrôles précédents (confirmation, réponse incomplète) ont déjà pu annuler l'envoi.
     chaque(document.querySelectorAll('form[method="post"]'), function (formulaire) {

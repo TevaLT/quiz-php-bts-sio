@@ -23,20 +23,23 @@ puis ouvre <http://localhost:8000>. Raccourcis : double-clic sur `site/demarrer.
 
 1. **Accueil** : « Partie rapide » en un clic (10 questions sur tout le programme), ou « Reprendre » si une partie est en cours.
    Pour personnaliser, trois étapes : les thèmes à réviser (une tuile par bloc, ou chapitre par chapitre), le mode (entraînement,
-   examen, série, révision de tes erreurs), puis les réglages (nombre de questions, minuteur, questions des cours). Une barre
+   examen, série, révision de tes erreurs), puis les réglages (nombre de questions, minuteur, questions des supports de référence). Une barre
    « Commencer » reste visible avec le résumé de la partie et le nombre de questions disponibles. Les réglages de ta dernière
    partie sont repris, et une sélection impossible est signalée avant l'envoi.
 2. **Question** : réponds au clavier (`A`–`D`, `Entrée`, `S` pour passer) ou à la souris ; le code est coloré. Le score s'affiche
    en direct. Valider sans répondre affiche une consigne, sans recharger la page. Avec le minuteur, un compte à rebours s'affiche ;
    à zéro, la question est comptée « hors délai ». En série, le compteur et ton record sont affichés.
 3. **Correction** : un bandeau de verdict, les étiquettes « Ta réponse » et « Bonne réponse » (en texte, pas seulement en couleur),
-   l'explication, le temps de réponse, le chapitre, le cours et la fiche à relire.
-4. **Bilan** : score, puis « Et maintenant ? » : l'action conseillée selon le résultat (relire la fiche du chapitre le plus raté,
+   l'explication, le temps de réponse, et des liens vers la leçon et les fiches du chapitre.
+4. **Bilan** : score, puis « Et maintenant ? » : l'action conseillée selon le résultat (relire le cours du chapitre le plus raté,
    refaire ses erreurs, ajouter le minuteur, tenter une série). Ensuite le détail par chapitre, la meilleure série (et nouveau
    record), le temps moyen, la correction de chaque question, la graine pour rejouer et l'impression.
-5. **Fiches** : toutes les questions d'un chapitre avec leur réponse expliquée, et une recherche par mot-clé dans toute la banque
+5. **Cours** : 28 leçons qui suivent les chapitres du quiz (objectifs, explications, code coloré avec bouton « Copier »,
+   encadrés « Attention » et « À retenir »), un sommaire qui indique ta maîtrise de chaque chapitre et le prochain chapitre
+   conseillé, un plan de la leçon qui suit la lecture, et un test de 10 questions à la fin de chaque leçon.
+6. **Fiches** : toutes les questions d'un chapitre avec leur réponse expliquée, et une recherche par mot-clé dans toute la banque
    (mots surlignés, accents et majuscules ignorés).
-6. **Statistiques** : graphique de progression (score de chaque partie et moyenne glissante), record de série, temps moyen,
+7. **Statistiques** : graphique de progression (score de chaque partie et moyenne glissante), record de série, temps moyen,
    réussite par chapitre, questions les plus ratées, et un raccourci pour s'entraîner sur ses points faibles.
 
 Partout : un seul bouton de thème (Auto → Clair → Sombre), des messages en notifications discrètes (les erreurs restent
@@ -57,6 +60,7 @@ site/
 │   ├── http.php             échappement, redirections, CSRF, messages flash, thème, URL versionnées, rendu
 │   ├── partie.php           logique d'une partie (modes, minuteur, série) : fonctions pures sur des tableaux
 │   ├── fiches.php           fiches de révision et recherche : fonctions pures
+│   ├── cours.php            le cours : lecture des leçons (Markdown simplifié), sommaire, chapitre conseillé
 │   ├── pages.php            pages (GET) et actions (POST)
 │   ├── stats.php            statistiques, progression, records, chapitres à consolider
 │   └── vues.php             assistants d'affichage : coloration du code, graphiques SVG (HTML toujours échappé)
@@ -78,6 +82,7 @@ dans `moteur.php`.
 | GET | `/question`, `/correction`, `/bilan` | déroulement d'une partie |
 | POST | `/repondre`, `/abandonner` | répondre (ou « temps écoulé »), terminer maintenant |
 | POST | `/erreurs` | refaire les questions ratées de la partie terminée |
+| GET | `/cours`, `/cours?ch=05` | le cours : sommaire, leçon d'un chapitre (404 si chapitre inconnu) |
 | GET | `/fiches`, `/fiches?ch=05`, `/fiches?q=pdo` | fiches de révision : sommaire, chapitre, recherche (404 si chapitre inconnu) |
 | GET | `/stats`, `/sources` | statistiques ; sources et licences |
 | GET, POST | `/reinitialiser` | effacer l'historique (avec confirmation) |
@@ -88,13 +93,14 @@ dans `moteur.php`.
 | Notion | Où la voir |
 |---|---|
 | Front controller et routage par méthode | `public/index.php` (chapitre 21) |
-| Séparation données / logique / affichage | `partie.php`, `fiches.php` et `stats.php` ne touchent à aucune superglobale ni au HTML (chapitre 21) |
-| Validation par listes blanches | `validerOptionsPartie()`, `validerReponse()`, chapitre des fiches (chapitres 12 et 13) |
+| Séparation données / logique / affichage | `partie.php`, `fiches.php`, `cours.php` et `stats.php` ne touchent à aucune superglobale ni au HTML (chapitre 21) |
+| Validation par listes blanches | `validerOptionsPartie()`, `validerReponse()`, chapitre des fiches et du cours (chapitres 12 et 13) |
 | Formulaire réaffiché avec le statut **422** | création d'une partie invalide (chapitre 21) |
 | Post/Redirect/Get et messages flash | toutes les actions POST redirigent en **303** (chapitres 13 et 14) |
 | Jeton **CSRF** et `hash_equals`, refus **403** | `verifierCsrf()` dans `http.php` (chapitre 15) |
 | Session : cookie `HttpOnly`, `SameSite`, mode strict | `bootstrap.php` (chapitre 14) |
-| Cookie de préférence validé (thème) | `actionTheme()` : liste blanche + redirection limitée à des pages connues |
+| Cookie de préférence validé (thème) | `actionTheme()` : liste blanche + redirection limitée à des pages connues (`adresseRetour()`) |
+| Contenu rédigé sans HTML brut | les leçons sont du Markdown simplifié : tout le texte est échappé, seuls `code`, gras et liens sûrs (`/…`, `https://`) sont mis en forme (`coursHtml()`) |
 | Échappement de toute sortie (`e()`), pas de style ni de script en ligne | `http.php`, `vues.php`, CSP dans `bootstrap.php` (chapitres 13 et 15) |
 | Données JavaScript insérées avec `textContent` | survol du graphique et minuteur dans `app.js` (chapitre 26) |
 | Pas de fuite d'information | erreurs dans les journaux, page 500 neutre (`QUIZ_DEBUG=1` pour déboguer en local) |
@@ -125,13 +131,15 @@ dans `moteur.php`.
 - Le compte à rebours annonce « 10 secondes » et « 5 secondes » aux lecteurs d'écran, sans les submerger à chaque seconde.
 - Le graphique de progression a son équivalent en tableau, se parcourt au clavier (flèches, Début, Fin) et annonce
   chaque partie aux lecteurs d'écran ; ses couleurs sont validées en thème clair et sombre (contraste, daltonisme).
-- Le bilan, les fiches et les statistiques s'impriment proprement (encre noire, détails dépliés).
+- Le bilan, les fiches, les statistiques et les leçons du cours s'impriment proprement (encre noire, détails dépliés).
+- Dans le cours, le plan de la leçon indique la section en cours de lecture (`aria-current`), les encadrés ont un titre
+  en texte (« Attention », « À retenir ») et pas seulement une couleur, et chaque bloc de code annonce son langage.
 
 ## Tests
 
 ```bash
-php site/tests/partie_test.php     # logique : parties, minuteur, série, fiches, rattrapage, progression, coloration, graphique
-php site/tests/http_test.php       # bout en bout : statuts HTTP, CSRF, cookies, en-têtes, cache, minuteur, série, fiches
+php site/tests/partie_test.php     # logique : parties, minuteur, série, fiches, cours, rattrapage, progression, coloration, graphique
+php site/tests/http_test.php       # bout en bout : statuts HTTP, CSRF, cookies, en-têtes, cache, minuteur, série, fiches, cours
 php quiz.php --verifier            # banque de questions et générateurs
 ```
 
