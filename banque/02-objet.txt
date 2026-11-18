@@ -1,0 +1,425 @@
+// Banque de questions — chapitres 08 à 11 : programmation orientée objet en PHP
+// Format : voir banque/README.md
+
+# 08
+
+Q: Que crée l'instruction new Produit('Stylo', 2.5) ?
++ Un objet, instance de la classe Produit, en appelant son constructeur
+- Une nouvelle classe Produit, copiée à partir de la classe existante
+- Un tableau associatif ['Stylo', 2.5] rangé sous la clé Produit
+- Une constante Produit dont la valeur vaut 'Stylo'
+? La classe est le plan ; new fabrique un objet à partir de ce plan et transmet les arguments à __construct().
+
+Q: Que désigne $this à l'intérieur d'une méthode ?
++ L'objet sur lequel la méthode a été appelée
+- La classe elle-même, partagée par tous les objets
+- La classe parente de la classe courante
+- Le fichier PHP dans lequel la classe est écrite
+? Dans $panier->ajouter($p), $this vaut $panier pendant l'exécution de ajouter(). On écrit $this->total pour lire ou modifier une propriété de cet objet.
+
+Q: Quel opérateur permet d'appeler une méthode sur un objet ($p … prix()) ?
+= ->
+? $p->prix() appelle une méthode, $p->nom lit une propriété (sans $ devant le nom). :: sert aux membres statiques et aux constantes de classe.
+
+Q: Quel est le nom de la méthode appelée automatiquement par new ?
+= __construct
+? Le constructeur reçoit les arguments passés à new et prépare l'objet dans un état valide. Il ne retourne rien.
+
+Q: Qu'est-ce que la « promotion de constructeur » ?
+|public function __construct(private string $titre, private int $annee) {}
++ Déclarer et initialiser les propriétés directement dans la liste des paramètres
+- Appeler automatiquement le constructeur de la classe parente
+- Passer la classe à un niveau de visibilité supérieur
+- Remplacer le constructeur par une méthode statique
+? Pratique : plus besoin de déclarer la propriété puis de l'assigner à la main.
+
+Q: Que signifie private devant une propriété ?
++ Elle n'est accessible que depuis l'intérieur de la classe
+- Elle n'est accessible que depuis les classes enfants
+- Elle n'est accessible que depuis le même namespace
+- Elle n'est accessible que depuis le même fichier
+? public : partout ; protected : classe et enfants ; private : classe seule. C'est l'encapsulation.
+
+Q: Que garantit readonly sur une propriété ?
++ Elle ne peut être assignée qu'une seule fois, à l'initialisation
+- Elle ne peut être lue que depuis l'intérieur de la classe
+- Elle est automatiquement mise en cache entre deux requêtes
+- Elle est protégée contre les injections SQL
+? Un objet readonly est immuable après construction : c'est l'idéal pour un objet de domaine. Une seconde affectation lève « Cannot modify readonly property ».
+
+Q: Qu'affiche ce code ?
+|class Compteur {
+|    public int $n = 0;
+|}
+|$a = new Compteur();
+|$b = $a;
+|$b->n = 5;
+|echo $a->n;
+= 5
+? $b = $a ne copie pas l'objet : les deux variables désignent le MÊME objet. Pour obtenir un objet indépendant, on écrit $b = clone $a;. (Un tableau, lui, serait copié.)
+
+Q: Que fait clone $commande quand $commande contient un objet $client ?
++ Il crée un nouvel objet commande, mais le client reste partagé (copie superficielle)
+- Il copie la commande et, récursivement, tous les objets qu'elle contient
+- Il renvoie le même objet, comme une simple affectation
+- Il crée une commande vide dont toutes les propriétés valent null
+? Pour une copie profonde, on définit __clone() et on y clone les objets internes : $this->client = clone $this->client;.
+
+Q: Deux objets distincts de la même classe ont des propriétés identiques. Que valent $a == $b puis $a === $b ?
++ true puis false
+- true puis true
+- false puis false
+- false puis true
+? == compare les propriétés (même classe, mêmes valeurs) ; === vérifie qu'il s'agit du même objet en mémoire.
+
+Q: Que se passe-t-il quand on lit une propriété typée jamais initialisée ?
+|class Produit {
+|    public string $nom;
+|}
+|echo (new Produit())->nom;
++ Une Error : « must not be accessed before initialization »
+- Une chaîne vide s'affiche, valeur par défaut d'une string
+- null s'affiche, comme pour toute variable non définie
+- Un simple avertissement, puis le script continue
+? Une propriété typée sans valeur par défaut reste « non initialisée ». C'est au constructeur de lui donner une valeur, ou on prévoit un défaut : public string $nom = '';.
+
+Q: À quoi sert la méthode magique __toString() ?
++ À définir le texte obtenu quand l'objet est utilisé comme une chaîne
+- À convertir automatiquement toutes les propriétés en chaînes
+- À afficher l'objet dans la console du navigateur
+- À enregistrer l'objet dans la base sous forme de texte
+? echo $produit; ou 'Article : ' . $produit appellent __toString(). La classe implémente alors automatiquement l'interface Stringable.
+
+Q: Que vaut $ville après $ville = $client?->adresse?->ville; quand $client vaut null ?
++ null, sans erreur : l'opérateur nullsafe arrête la chaîne
+- Une Error « Attempt to read property on null »
+- La chaîne vide, valeur par défaut d'une propriété
+- false, car la chaîne d'appels a échoué
+? ?-> (PHP 8) court-circuite toute la suite dès qu'un maillon vaut null. Avec ->, lire une propriété sur null provoquerait un avertissement.
+
+Q: Que teste l'expression $p instanceof Produit ?
++ Si $p est un objet de la classe Produit, d'une classe enfant ou d'une classe qui implémente l'interface Produit
+- Si $p contient exactement les mêmes propriétés que la classe Produit
+- Si la classe Produit a déjà été chargée en mémoire
+- Si $p a été créé dans le même fichier que la classe Produit
+? instanceof suit l'héritage et les interfaces. Pour connaître la classe exacte : $p::class ou get_class($p).
+
+Q: Pourquoi rendre une propriété private et l'exposer par des méthodes ?
++ Pour que l'objet contrôle ses modifications et reste toujours valide
+- Pour que l'objet occupe moins de mémoire une fois créé
+- Pour que la propriété soit enregistrée en base automatiquement
+- Pour pouvoir lire la propriété depuis n'importe quelle classe
+? C'est l'encapsulation : une méthode crediter(float $montant) peut refuser un montant négatif, alors qu'une propriété publique accepterait n'importe quoi.
+
+Q: Que garantit le mot-clé readonly placé devant class (PHP 8.2) ?
++ Toutes les propriétés de la classe deviennent readonly
+- La classe ne peut plus être instanciée avec new
+- Les méthodes de la classe ne peuvent que lire, jamais calculer
+- La classe ne peut pas être étendue par une autre classe
+? readonly class Point { public function __construct(public int $x, public int $y) {} } : un objet immuable, qu'on « modifie » en créant un nouvel objet.
+
+Q: Pourquoi certaines méthodes se terminent-elles par return $this; ?
++ Pour pouvoir chaîner les appels : $requete->where(…)->orderBy(…)
+- Pour supprimer l'objet de la mémoire après l'appel
+- Pour que la méthode soit exécutée une seconde fois
+- Pour transformer la méthode en méthode statique
+? C'est une interface « fluide ». Avec des objets immuables, on renvoie plutôt un nouvel objet modifié (comme withHeader en PSR-7).
+
+# 09
+
+Q: Que signifie class Chien extends Animal ?
++ Chien hérite des propriétés et méthodes publiques et protégées d'Animal
+- Chien copie le code d'Animal, puis les deux classes évoluent séparément
+- Animal hérite des propriétés et des méthodes de la classe Chien
+- Chien et Animal deviennent deux noms de la même classe
+? L'héritage exprime une relation « est un » : un Chien est un Animal. Il peut ajouter des méthodes ou redéfinir celles qu'il hérite.
+
+Q: Une classe PHP peut-elle étendre plusieurs classes à la fois ?
++ Non : une seule classe parente ; interfaces et traits complètent
+- Oui : on sépare les classes parentes par des virgules
+- Oui, mais seulement si elles sont toutes abstraites
+- Non, sauf si les classes sont déclarées final
+? PHP pratique l'héritage simple. Pour partager des comportements, on implémente plusieurs interfaces ou on utilise des traits.
+
+Q: Que fait parent::__construct($nom) dans le constructeur d'une classe enfant ?
++ Il exécute le constructeur de la classe parente
+- Il crée un second objet, de la classe parente
+- Il remplace l'objet courant par un objet parent
+- Il empêche l'appel du constructeur de l'enfant
+? Si l'enfant définit son propre constructeur, celui du parent n'est PAS appelé automatiquement : on l'appelle explicitement pour initialiser la partie héritée.
+
+Q: Que signifie protected devant une méthode ?
++ Elle est utilisable dans la classe et dans ses classes enfants, pas depuis l'extérieur
+- Elle est utilisable partout, mais ne peut pas être redéfinie
+- Elle est utilisable uniquement depuis la classe qui la déclare
+- Elle est utilisable seulement dans le fichier où elle est écrite
+? protected ouvre l'accès à la descendance sans l'ouvrir au reste du code. private le réserve à la classe qui la déclare.
+
+Q: Que signifie final devant une classe ?
++ Elle ne peut pas être étendue par une autre classe
+- Elle ne peut plus être modifiée après sa première exécution
+- Elle est la dernière classe chargée par l'autoloader
+- Ses propriétés deviennent automatiquement readonly
+? « Class B cannot extend final class A ». Une méthode final ne peut pas être redéfinie dans une classe enfant.
+
+Q: Qu'est-ce qu'une classe abstraite ?
++ Une classe qu'on ne peut pas instancier, prévue pour être étendue
+- Une classe sans aucune propriété ni aucune méthode
+- Une classe dont toutes les méthodes sont statiques
+- Une classe chargée seulement au moment de son utilisation
+? Elle peut contenir du code commun et déclarer des méthodes abstraites (sans corps) que chaque classe enfant devra implémenter.
+
+Q: Que se passe-t-il avec new Forme() lorsque Forme est une classe abstraite ?
++ Une Error : « Cannot instantiate abstract class Forme »
+- Un objet Forme dont les méthodes abstraites renvoient null
+- Un objet de la première classe enfant trouvée
+- Un simple avertissement, puis un objet vide
+? On instancie une classe concrète, par exemple new Cercle(2), qui étend Forme et implémente ses méthodes abstraites.
+
+Q: Qu'affiche ce code ?
+|class A {
+|    public function nom(): string { return 'A'; }
+|}
+|class B extends A {
+|    public function nom(): string { return 'B' . parent::nom(); }
+|}
+|echo (new B())->nom();
+= BA
+? B redéfinit nom() ; parent::nom() appelle la version de A. L'enfant complète le comportement hérité au lieu de le recopier.
+
+Q: Qu'est-ce que le polymorphisme ?
++ Des objets de classes différentes répondent au même appel, chacun à leur manière
+- Une classe qui change de nom selon le contexte d'exécution
+- Une méthode qui accepte n'importe quel nombre d'arguments
+- Un objet qui hérite de plusieurs classes à la fois
+? foreach ($formes as $f) { echo $f->aire(); } fonctionne pour un Cercle comme pour un Rectangle : le code appelant ne connaît que le contrat commun.
+
+Q: Une classe enfant redéfinit en private une méthode publique de son parent. Que se passe-t-il ?
++ Une erreur fatale : on ne peut pas restreindre la visibilité héritée
+- La méthode devient privée seulement pour les objets de l'enfant
+- PHP garde silencieusement la visibilité publique d'origine
+- Les deux méthodes coexistent, chacune avec sa visibilité
+? « Access level to B::f() must be public (as in class A) ». Un enfant doit pouvoir remplacer son parent partout : il peut élargir la visibilité, jamais la réduire.
+
+Q: Une classe concrète étend une classe abstraite sans implémenter l'une de ses méthodes abstraites. Que se passe-t-il ?
++ Une erreur fatale dès le chargement de la classe
+- La méthode manquante renvoie null quand on l'appelle
+- PHP utilise automatiquement le code de la classe parente
+- Rien, tant que la méthode n'est jamais appelée
+? « Class B contains 1 abstract method and must therefore be declared abstract or implement the remaining method ». Le contrat est vérifié avant toute exécution.
+
+Q: Quand préférer la composition (un objet en contient un autre) à l'héritage ?
++ Quand la relation est « a un » plutôt que « est un »
+- Quand on veut que les deux classes aient le même nom
+- Quand la classe parente est déclarée abstraite
+- Jamais : l'héritage est toujours plus simple
+? Une Voiture A UN Moteur : elle reçoit un objet Moteur au lieu d'étendre Moteur. La composition limite le couplage et facilite le remplacement d'une pièce.
+
+Q: Que dit le principe de substitution de Liskov ?
++ Un objet enfant doit pouvoir remplacer un objet parent sans casser le code qui l'utilise
+- Une classe enfant doit redéfinir toutes les méthodes de sa classe parente
+- Deux classes ne peuvent pas avoir de méthodes portant le même nom
+- Une classe doit toujours avoir exactement une seule classe parente
+? C'est le « L » de SOLID. Un enfant qui lève une exception là où le parent fonctionnait, ou qui refuse des valeurs acceptées par le parent, viole ce principe.
+
+Q: À quoi sert l'attribut #[\Override] (PHP 8.3) placé sur une méthode ?
++ À vérifier qu'elle redéfinit bien une méthode existante du parent
+- À forcer l'appel automatique de la méthode parente au même nom
+- À rendre la méthode impossible à redéfinir dans les classes enfants
+- À masquer la méthode parente aux autres classes du projet
+? Si la méthode parente est renommée ou mal orthographiée, PHP lève une erreur au lieu de laisser une méthode orpheline qui ne redéfinit plus rien.
+
+# 10
+
+Q: Qu'est-ce qu'une interface en PHP ?
++ Un contrat : la liste des méthodes publiques qu'une classe s'engage à fournir
+- Une classe complète dont on hérite le code et les propriétés
+- Un fichier qui décrit l'affichage HTML d'une classe
+- Un objet partagé par toutes les classes d'un namespace
+? interface Payable { public function payer(float $montant): void; } puis class CarteBancaire implements Payable { … }. Le code qui reçoit un Payable ignore les détails.
+
+Q: Une classe peut-elle implémenter plusieurs interfaces ?
++ Oui : class Fichier implements Lisible, Inscriptible
+- Non : une seule interface par classe, comme pour extends
+- Oui, mais seulement si elles n'ont aucune méthode en commun
+- Non, sauf si la classe est déclarée abstraite
+? Contrairement à l'héritage de classe (un seul parent), on peut implémenter autant d'interfaces que nécessaire, en plus d'un éventuel extends.
+
+Q: Que se passe-t-il avec new Payable() lorsque Payable est une interface ?
++ Une Error : on ne peut pas instancier une interface
+- Un objet vide qui possède les méthodes de l'interface
+- Un objet de la première classe qui implémente Payable
+- Un avertissement, puis la valeur null
+? Une interface n'a pas de code à exécuter. On instancie une classe qui l'implémente, et on utilise l'interface comme type : function regler(Payable $moyen).
+
+Q: Quelle différence y a-t-il entre une classe abstraite et une interface ?
++ La classe abstraite peut contenir du code et des propriétés ; on n'en étend qu'une
+- L'interface peut contenir des propriétés ; la classe abstraite, non
+- On peut instancier une interface, mais pas une classe abstraite
+- La classe abstraite ne peut contenir que des méthodes statiques
+? Une interface décrit un contrat (méthodes publiques, constantes) et se cumule ; une classe abstraite partage aussi une implémentation commune.
+
+Q: Qu'est-ce qu'un trait ?
++ Un ensemble de méthodes réutilisables, intégré dans une classe avec use
+- Une classe abstraite qu'on étend avec le mot-clé trait
+- Une interface dont les méthodes ont déjà un corps obligatoire
+- Une fonction globale rattachée automatiquement à chaque classe
+? trait Horodatable { … } puis class Article { use Horodatable; }. Le code du trait est intégré à la classe : c'est de la réutilisation horizontale, sans relation « est un ».
+
+Q: Deux traits utilisés par la même classe définissent une méthode hello(). Comment lever le conflit ?
++ Avec insteadof pour choisir une version, et as pour garder l'autre sous un alias
+- En déclarant l'un des deux traits avec le mot-clé final
+- En plaçant les deux traits dans des fichiers séparés
+- Impossible : deux traits ne doivent jamais avoir de méthode commune
+? use T1, T2 { T1::hello insteadof T2; T2::hello as hello2; } : hello() vient de T1, hello2() de T2.
+
+Q: Que déclare enum Statut: string { case Actif = 'actif'; case Inactif = 'inactif'; } ?
++ Une énumération « backed » : chaque cas est associé à une chaîne
+- Une classe dont les propriétés Actif et Inactif sont modifiables
+- Deux constantes globales nommées Actif et Inactif
+- Un tableau associatif dont les clés sont Actif et Inactif
+? Statut::Actif est un objet unique ; Statut::Actif->value vaut 'actif'. Une énumération sans « : string » est dite « pure » (sans valeur associée).
+
+Q: Que se passe-t-il avec Statut::from('inconnu') quand aucun cas n'a cette valeur ?
++ Une ValueError est levée
+- La méthode renvoie null
+- La méthode renvoie le premier cas de l'énumération
+- Un nouveau cas 'inconnu' est créé à la volée
+? from() exige une valeur valide ; tryFrom() renvoie null quand rien ne correspond. On choisit tryFrom pour une donnée externe (formulaire, JSON) qu'on valide ensuite.
+
+Q: Que retourne Statut::tryFrom('inconnu') ?
+= null
+? tryFrom est la version tolérante de from : utile pour valider une saisie, par exemple Statut::tryFrom($_GET['statut'] ?? '') ?? Statut::Actif.
+
+Q: Quelle méthode statique renvoie la liste de tous les cas d'une énumération ?
+= cases | Statut::cases | ::cases
+? Statut::cases() renvoie un tableau des cas, dans l'ordre de déclaration : pratique pour construire les options d'un <select>.
+
+Q: Pourquoi utiliser une énumération plutôt que des chaînes 'actif' et 'inactif' ?
++ Le type limite les valeurs possibles : une faute de frappe devient une erreur détectée
+- Une énumération occupe moins de place en base de données
+- Une énumération s'affiche automatiquement en couleur dans la page
+- Les chaînes sont interdites comme valeurs de retour depuis PHP 8.1
+? function changer(Statut $s) n'accepte que Statut::Actif ou Statut::Inactif. Avec une chaîne, 'actfi' passerait sans erreur jusqu'en base.
+
+Q: Une énumération PHP peut-elle avoir des méthodes ?
++ Oui, et implémenter des interfaces, mais elle ne peut pas avoir de propriétés modifiables
+- Non : une énumération ne contient que la liste de ses cas
+- Oui, mais seulement des méthodes statiques sans paramètre
+- Non, sauf si elle est déclarée abstraite
+? Exemple : public function libelle(): string { return match ($this) { self::Actif => 'Compte actif', self::Inactif => 'Compte suspendu' }; }
+
+Q: Que vaut Statut::Actif === Statut::from('actif') ?
++ true : chaque cas d'une énumération est un objet unique
+- false : from() crée un nouvel objet à chaque appel
+- Une Error : on ne compare pas deux cas avec ===
+- 'actif' : la comparaison renvoie la valeur du cas
+? Les cas sont des singletons : on peut les comparer avec === ou les utiliser directement dans un match.
+
+Q: Quelle interface faut-il implémenter pour que count($panier) fonctionne sur un objet ?
+= Countable
+? class Panier implements Countable { public function count(): int { … } }. Pour parcourir l'objet avec foreach, on implémente IteratorAggregate.
+
+# 11
+
+Q: À quoi sert un namespace ?
++ À éviter les collisions de noms entre classes de bibliothèques différentes
+- À protéger les classes contre la lecture par d'autres fichiers
+- À charger automatiquement les fichiers des classes utilisées
+- À regrouper les variables globales d'un même module
+? App\Model\Facture et Vendor\Pdf\Facture peuvent coexister. Le chargement des fichiers relève de l'autoloader, pas du namespace.
+
+Q: Que fait use App\Model\Produit; en haut d'un fichier ?
++ Il permet d'écrire Produit au lieu du nom complet, sans charger le fichier
+- Il charge immédiatement le fichier qui contient la classe Produit
+- Il crée une copie de la classe Produit dans le namespace courant
+- Il rend la classe Produit accessible depuis le navigateur
+? use crée un alias de nom, résolu à la compilation. C'est l'autoloader qui charge le fichier au premier usage réel de la classe.
+
+Q: Que retourne Produit::class quand le fichier contient use App\Model\Produit; ?
++ La chaîne 'App\Model\Produit'
+- Un nouvel objet de la classe Produit
+- Le chemin du fichier qui contient la classe
+- La liste des méthodes de la classe Produit
+? ::class donne le nom complet sous forme de chaîne, sans charger la classe : pratique pour les conteneurs d'injection ou les routes.
+
+Q: Dans un fichier qui commence par namespace App;, pourquoi écrire new \DateTime() ?
++ Sans antislash, PHP chercherait la classe App\DateTime, qui n'existe pas
+- L'antislash rend l'objet DateTime immuable
+- L'antislash charge l'extension date avant de créer l'objet
+- Sans antislash, la date serait calculée dans le fuseau UTC
+? Les noms de classes non qualifiés sont résolus dans le namespace courant : « Class "App\DateTime" not found ». On écrit \DateTime ou on ajoute use DateTime;. (Les fonctions comme strlen se replient, elles, sur l'espace global.)
+
+Q: Que représente une propriété déclarée static ?
++ Une valeur partagée par la classe entière, pas propre à chaque objet
+- Une valeur qui ne peut jamais changer après sa déclaration
+- Une valeur recalculée à chaque création d'objet
+- Une valeur visible uniquement dans le constructeur
+? Elle s'utilise avec Classe::$nom ou self::$nom. Toutes les instances voient la même valeur : pratique pour un compteur, risqué pour un état global.
+
+Q: Comment appelle-t-on la méthode statique creer() de la classe Produit ?
++ Produit::creer()
+- Produit->creer()
+- new Produit::creer()
+- Produit.creer()
+? L'opérateur :: (« Paamayim Nekudotayim ») accède aux membres statiques et aux constantes de classe, sans créer d'objet.
+
+Q: Peut-on utiliser $this dans une méthode statique ?
++ Non : il n'y a pas d'objet courant, c'est une Error
+- Oui : $this désigne alors la classe elle-même
+- Oui, mais seulement en lecture
+- Non, sauf si la classe est déclarée final
+? « Using $this when not in object context ». Une méthode statique travaille avec ses paramètres et les membres statiques (self::…).
+
+Q: Qu'affiche ce code ?
+|class A {
+|    public static function creer(): string {
+|        return static::class;
+|    }
+|}
+|class B extends A {}
+|echo B::creer();
+= B
+? static:: désigne la classe réellement utilisée pour l'appel (« late static binding »). C'est ce qui permet à une méthode de fabrique héritée de créer un objet de la bonne classe : return new static();.
+
+Q: Dans le même code, que renverrait B::creer() avec self::class au lieu de static::class ?
++ A : self désigne la classe où la méthode est écrite
+- B : self suit la classe utilisée pour l'appel
+- Une Error : self est interdit dans une méthode statique
+- La chaîne 'self'
+? self:: est figé à la classe qui contient le code ; static:: est résolu au moment de l'appel.
+
+Q: Comment déclare-t-on et lit-on une constante de classe ?
++ const TAUX = 0.2; dans la classe, puis self::TAUX ou Produit::TAUX
+- define('TAUX', 0.2); dans la classe, puis $this->TAUX
+- static $TAUX = 0.2; dans la classe, puis Produit->TAUX
+- public TAUX = 0.2; dans la classe, puis Produit.TAUX
+? Les constantes de classe regroupent des valeurs fixes liées à la classe. Depuis PHP 8.3, on peut aussi les typer : const float TAUX = 0.2;.
+
+Q: Que fait spl_autoload_register() ?
++ Il enregistre une fonction appelée pour charger le fichier d'une classe inconnue
+- Il charge immédiatement toutes les classes du projet en mémoire
+- Il vérifie que chaque classe respecte bien la norme PSR-4
+- Il interdit l'utilisation des classes qui n'ont pas de namespace
+? C'est le mécanisme qu'utilise vendor/autoload.php de Composer : au premier new Produit, la fonction traduit le nom de classe en chemin de fichier et fait le require.
+
+Q: Où place-t-on la déclaration namespace App\Model; dans un fichier ?
++ Tout en haut, comme première instruction (seul declare peut la précéder)
+- Juste avant la déclaration de chaque méthode de la classe
+- À la fin du fichier, après la dernière accolade
+- Dans composer.json, jamais dans le fichier lui-même
+? Convention PSR-4 : un fichier, une classe, et le namespace correspond au chemin du dossier (App\Model → src/Model/).
+
+Q: Pourquoi éviter de multiplier les méthodes statiques dans le code métier ?
++ Elles créent des dépendances cachées, difficiles à remplacer dans un test
+- Elles sont toujours plus lentes que les méthodes d'objet
+- Elles ne peuvent pas recevoir de paramètres typés
+- Elles sont supprimées à la fin de chaque requête
+? Un appel Base::connexion() au milieu d'une méthode ne se remplace pas facilement. Recevoir l'objet par le constructeur (injection de dépendances) rend le code testable.
+
+Q: Que se passe-t-il si deux fichiers déclarent une classe Produit dans le même namespace et sont chargés tous les deux ?
++ Une erreur fatale : la classe ne peut pas être déclarée deux fois
+- La seconde déclaration remplace silencieusement la première
+- PHP fusionne les méthodes des deux classes en une seule
+- PHP renomme automatiquement la seconde en Produit2
+? « Cannot redeclare class App\Produit » (ou « Cannot declare class …, because the name is already in use » selon la version de PHP). Les namespaces existent précisément pour éviter ces collisions entre bibliothèques, et require_once évite de charger deux fois le même fichier.

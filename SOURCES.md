@@ -15,20 +15,24 @@ publiés sous licence Creative Commons Attribution – Partage dans les mêmes c
 - JavaScript Vanilla : approfondissement
 - JavaScript Vanilla : le DOM et les événements
 
-**Où les trouver** : dans `banque/`, les fichiers `5-securite-api.txt`, `6-javascript-fondamentaux.txt`,
-`7-javascript-fonctions-stockage.txt` et `8-javascript-dom-evenements.txt`, ainsi que la plupart des questions marquées
-`[cours]` dans les fichiers 1 à 4.
+**Où les trouver** : dans `banque/`, le fichier `06-securite-api-jwt.txt` (chapitre 23), les fichiers
+`07-javascript-fondamentaux.txt`, `08-javascript-fonctions-stockage.txt` et `09-javascript-dom-evenements.txt`
+(chapitres 24 à 26), ainsi que toutes les questions marquées `[cours]` dans les autres fichiers.
 
 **Modifications** : ce sont des adaptations. Les notions sont reformulées sous forme de questions, avec de nouveaux exemples,
 des propositions de réponse et des explications écrites pour le quiz ; le texte des cours n'est pas reproduit.
-Les cours restent la référence pour apprendre.
+Les cours restent la référence pour apprendre. Les questions qui portaient sur les exercices des cours (scénarios de TP,
+fonctions à écrire) ont été retirées ou réécrites sur des exemples génériques.
 
 ## Autres sources
 
-- **Notions travaillées en TP** : les autres questions sont originales ; elles portent sur ces notions sans reproduire les sujets.
+- **Questions originales** : toutes les autres questions (dont la programmation objet, les exceptions, les chaînes, les
+  fichiers et dates, et le JavaScript asynchrone) portent sur le langage lui-même. Elles ne reprennent ni le contenu ni les
+  sujets des exercices de TP.
 - **Un MOOC PHP** (diapositives) : quelques notions générales de syntaxe, reformulées.
 - **Un sujet de synthèse corrigé** (PHP, PDO, MVC, REST) : des notions générales, reformulées sur un autre scénario
-  (réservation de places pour des séances de cinéma) dans `banque/9-complements-synthese.txt`, sans en reprendre le texte.
+  (réservation de places pour des séances de cinéma), sans en reprendre le texte. Elles sont réparties dans les
+  chapitres 12, 13, 15, 19, 21, 22 et 23.
 
 ## Licences de ce dépôt
 

@@ -5,10 +5,10 @@ declare(strict_types=1);
 /**
  * Moteur du quiz : tout ce qui ne dépend ni du terminal ni du web.
  *
- *   - lecture de la banque de questions (quiz/banque/*.txt) et des générateurs ;
+ *   - lecture de la banque de questions (banque/*.txt, mise en cache pour le site) et des générateurs ;
  *   - tirage pondéré selon l'historique (des questions neuves à chaque session) ;
  *   - correction des réponses (choix unique, cases multiples, réponse libre) ;
- *   - historique des sessions (quiz/historique.json).
+ *   - historique des sessions (historique.json) : scores, séries, temps de réponse.
  *
  * Il est utilisé par le quiz en ligne de commande (quiz.php) ET par le site web (site/) :
  * deux interfaces, les mêmes règles.
@@ -24,45 +24,56 @@ if (!defined('FICHIER_HISTORIQUE')) {
 }
 const DOSSIER_BANQUE = __DIR__ . '/banque';
 
+/** Cache de la banque analysée (fichier PHP généré, servi par OPcache) : utilisé par le site, jamais versionné. */
+const DOSSIER_CACHE = __DIR__ . '/cache';
+
+/** Nombre de questions d'une partie quand on ne précise rien (site et terminal). */
+const NOMBRE_QUESTIONS_DEFAUT = 20;
+
+/** Nombre maximal de questions d'une partie en mode « série » (elle s'arrête à la première erreur). */
+const SERIE_MAX = 50;
+
+/** Marge (en secondes) accordée au-delà du minuteur : temps de transfert de la page et de la réponse. */
+const TOLERANCE_CHRONO = 2;
+
 const TITRES = [
-    '00' => 'Premiers pas et erreurs',
-    '01' => 'Variables, types, calculs',
-    '02' => 'Conditions et logique',
+    '00' => 'Premiers pas et débogage',
+    '01' => 'Variables, types et opérateurs',
+    '02' => 'Conditions et comparaisons',
     '03' => 'Boucles',
-    '04' => 'Tableaux et textes',
-    '05' => 'Algorithmes classiques',
-    '06' => 'Fonctions, contrats, tests',
-    '07' => 'Récursivité',
-    '08' => 'Projet : Musée des algorithmes',
-    '09' => 'HTTP et superglobales',
-    '10' => 'Formulaires robustes',
-    '11' => 'Cookies',
-    '12' => 'Sessions et sécurité',
-    '13' => 'Projet : CinéClub',
-    '14' => 'Modèle relationnel et SQL',
-    '15' => 'PDO : lire',
-    '16' => 'PDO : CRUD',
-    '17' => 'Transactions et concurrence',
-    '18' => 'Authentification',
-    '19' => 'Composer et autoload PSR-4',
-    '20' => 'Medoo et repository',
-    '21' => 'Slim : routage et HTTP',
-    '22' => 'Catalogue Slim + Medoo',
-    '23' => 'Refactoring vers MVC',
-    '24' => 'API REST',
-    '25' => 'Projet : Médiathèque',
-    '26' => 'Sécuriser une API : JWT',
-    '27' => 'JavaScript : les fondamentaux',
-    '28' => 'JavaScript : fonctions, stockage, JSON',
-    '29' => 'JavaScript : DOM et événements',
+    '04' => 'Tableaux',
+    '05' => 'Chaînes de caractères',
+    '06' => 'Fonctions et récursivité',
+    '07' => 'Erreurs et exceptions',
+    '08' => 'Classes et objets',
+    '09' => 'Héritage et polymorphisme',
+    '10' => 'Interfaces, traits et énumérations',
+    '11' => 'Namespaces et membres statiques',
+    '12' => 'HTTP et superglobales',
+    '13' => 'Formulaires et validation',
+    '14' => 'Cookies et sessions',
+    '15' => 'Sécurité des applications web',
+    '16' => 'Fichiers, dates et JSON',
+    '17' => 'SQL et modèle relationnel',
+    '18' => 'PDO : connexion et lecture',
+    '19' => 'PDO : écriture et transactions',
+    '20' => 'Composer et autoload',
+    '21' => 'MVC, routage et frameworks',
+    '22' => 'API REST',
+    '23' => 'Sécuriser une API : JWT',
+    '24' => 'JavaScript : les fondamentaux',
+    '25' => 'JavaScript : fonctions, objets et stockage',
+    '26' => 'JavaScript : DOM et événements',
+    '27' => 'JavaScript : asynchrone et fetch',
 ];
 
 const BLOCS = [
-    1 => ['Bases du langage', 0, 8],
-    2 => ['Le web avec PHP', 9, 13],
-    3 => ['Bases de données', 14, 18],
-    4 => ['Outils, architecture et API', 19, 26],
-    5 => ['JavaScript', 27, 29],
+    1 => ['Bases du langage', 0, 7],
+    2 => ['Programmation orientée objet', 8, 11],
+    3 => ['PHP et le web', 12, 15],
+    4 => ['Données et persistance', 16, 19],
+    5 => ['Architecture et API', 20, 23],
+    6 => ['JavaScript', 24, 27],
 ];
 
 /**
@@ -70,10 +81,17 @@ const BLOCS = [
  * Les autres chapitres s'appuient sur plusieurs supports : voir SOURCES.md.
  */
 const COURS_DU_CHAPITRE = [
-    '26' => 'Sécuriser une API REST : JWT et authentification',
-    '27' => 'JavaScript Vanilla : les fondamentaux',
-    '28' => 'JavaScript Vanilla : approfondissement',
-    '29' => 'JavaScript Vanilla : le DOM et les événements',
+    '12' => 'PHP interactif : formulaires, superglobales, cookies et sessions',
+    '13' => 'PHP interactif : formulaires, superglobales, cookies et sessions',
+    '14' => 'PHP interactif : formulaires, superglobales, cookies et sessions',
+    '18' => 'PHP et les données persistantes (PDO)',
+    '19' => 'PHP et les données persistantes (PDO)',
+    '21' => 'MVC : comprendre avant d\'utiliser (Slim 4)',
+    '22' => 'Architecture REST et API avec Slim 4',
+    '23' => 'Sécuriser une API REST : JWT et authentification',
+    '24' => 'JavaScript Vanilla : les fondamentaux',
+    '25' => 'JavaScript Vanilla : approfondissement',
+    '26' => 'JavaScript Vanilla : le DOM et les événements',
 ];
 
 /** « 12 — Sessions et sécurité » (pour les messages « à revoir »). */
@@ -197,14 +215,79 @@ function creerSaisie(string $ch, array|string $q, array|string $acceptees, strin
  *   = réponse libre | variante (question à saisie libre)
  *   ? explication
  *
+ * La banque analysée est mémorisée pour la durée du processus. Pour le site web, elle est aussi écrite dans un
+ * fichier PHP de cache (dossier cache/) que l'OPcache garde en mémoire : les fichiers texte ne sont relus qu'après
+ * une modification. Le terminal et les tests lisent toujours les fichiers texte (aucun fichier écrit).
+ *
  * @return array{0: list<array<string,mixed>>, 1: list<string>}
  */
 function chargerBanque(): array
 {
-    $questions = [];
-    $erreurs = [];
+    static $memo = null;
+    if ($memo !== null) {
+        return $memo;
+    }
     $fichiers = glob(DOSSIER_BANQUE . '/*.txt') ?: [];
     sort($fichiers);
+    if (PHP_SAPI === 'cli' || getenv('QUIZ_CACHE') === '0') {
+        return $memo = analyserBanque($fichiers);
+    }
+
+    // Empreinte : chemin, date et taille de chaque fichier, plus la version du moteur (le format peut évoluer).
+    $empreinte = [__FILE__ . '@' . (int) filemtime(__FILE__)];
+    foreach ($fichiers as $f) {
+        $empreinte[] = $f . '@' . (int) filemtime($f) . '@' . (int) filesize($f);
+    }
+    $cache = DOSSIER_CACHE . '/banque-' . md5(implode('|', $empreinte)) . '.php';
+    if (is_file($cache)) {
+        try {
+            $donnees = include $cache;
+            if (is_array($donnees) && isset($donnees[0], $donnees[1])) {
+                return $memo = $donnees;
+            }
+        } catch (Throwable) {
+            // cache illisible : on relit les fichiers texte ci-dessous
+        }
+    }
+
+    $memo = analyserBanque($fichiers);
+    ecrireCacheBanque($cache, $memo);
+
+    return $memo;
+}
+
+/** Écrit le cache de manière atomique (fichier temporaire puis renommage) et supprime les anciennes versions. */
+function ecrireCacheBanque(string $cache, array $donnees): void
+{
+    if (!is_dir(DOSSIER_CACHE) && !@mkdir(DOSSIER_CACHE, 0775, true) && !is_dir(DOSSIER_CACHE)) {
+        return; // dossier non accessible en écriture : le site fonctionne, simplement sans cache
+    }
+    $temporaire = $cache . '.' . bin2hex(random_bytes(4)) . '.tmp';
+    if (@file_put_contents($temporaire, "<?php\n// Cache généré automatiquement depuis banque/*.txt : ne pas modifier.\nreturn " . var_export($donnees, true) . ";\n") === false) {
+        return;
+    }
+    if (!@rename($temporaire, $cache)) {
+        @unlink($temporaire);
+
+        return;
+    }
+    foreach (glob(DOSSIER_CACHE . '/banque-*.php') ?: [] as $ancien) {
+        if ($ancien !== $cache) {
+            @unlink($ancien);
+        }
+    }
+}
+
+/**
+ * Analyse les fichiers texte de la banque.
+ *
+ * @param list<string> $fichiers
+ * @return array{0: list<array<string,mixed>>, 1: list<string>}
+ */
+function analyserBanque(array $fichiers): array
+{
+    $questions = [];
+    $erreurs = [];
 
     foreach ($fichiers as $fichier) {
         $nom = basename($fichier);
@@ -560,7 +643,7 @@ function chargerGenerateurs(): array
     return $generateurs ??= require __DIR__ . '/generateurs.php';
 }
 
-/** @return list<string> chapitres (« 00 »…« 29 ») d'un bloc de 1 à 5 */
+/** @return list<string> chapitres (« 00 »…« 27 ») d'un bloc de 1 à 6 */
 function chapitresDuBloc(int $bloc): array
 {
     if (!isset(BLOCS[$bloc])) {
@@ -636,11 +719,40 @@ function modifierHistorique(callable $modifier): array
 }
 
 /**
+ * Longueur de la plus longue suite de bonnes réponses consécutives.
+ *
+ * @param list<string> $statuts ok | ko | passee | temps
+ */
+function meilleureSerie(array $statuts): int
+{
+    $meilleure = 0;
+    $courante = 0;
+    foreach ($statuts as $statut) {
+        $courante = $statut === 'ok' ? $courante + 1 : 0;
+        $meilleure = max($meilleure, $courante);
+    }
+
+    return $meilleure;
+}
+
+/** Record personnel : la plus longue série de bonnes réponses enregistrée dans l'historique (0 si aucune). */
+function meilleureSerieHistorique(array $histo): int
+{
+    $record = 0;
+    foreach ($histo['sessions'] as $session) {
+        $record = max($record, (int) ($session['serie'] ?? 0));
+    }
+
+    return $record;
+}
+
+/**
  * Ajoute à l'historique les résultats d'une session.
  *
- * @param list<array{question: array<string,mixed>, statut: string}> $resultats statut : ok | ko | passee | quitter
+ * @param list<array{question: array<string,mixed>, statut: string}> $resultats statut : ok | ko | passee | temps | quitter
+ * @param array<string,mixed> $infos informations ajoutées à la session (mode, minuteur, temps moyen…)
  */
-function appliquerResultats(array $histo, array $resultats, int $graine): array
+function appliquerResultats(array $histo, array $resultats, int $graine, array $infos = []): array
 {
     $repondues = array_values(array_filter($resultats, static fn (array $r): bool => $r['statut'] !== 'quitter'));
     if ($repondues === []) {
@@ -672,8 +784,9 @@ function appliquerResultats(array $histo, array $resultats, int $graine): array
         'score' => count(array_filter($repondues, static fn (array $r): bool => $r['statut'] === 'ok')),
         'total' => count($repondues),
         'graine' => $graine,
+        'serie' => meilleureSerie(array_column($repondues, 'statut')),
         'par_chapitre' => $parChap,
-    ];
+    ] + $infos;
 
     return $histo;
 }

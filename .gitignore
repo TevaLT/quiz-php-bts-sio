@@ -6,3 +6,6 @@ historique.json
 Thumbs.db
 .idea/
 .vscode/
+
+# Cache de la banque de questions (régénéré automatiquement).
+cache/

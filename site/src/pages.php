@@ -43,7 +43,7 @@ function cloturerPartie(array $partie): array
 {
     if (!$partie['enregistree'] && $partie['resultats'] !== []) {
         try {
-            modifierHistorique(static fn (array $histo): array => appliquerResultats($histo, resultatsPourHistorique($partie), (int) $partie['graine']));
+            modifierHistorique(static fn (array $histo): array => appliquerResultats($histo, resultatsPourHistorique($partie), (int) $partie['graine'], infosHistorique($partie)));
         } catch (Throwable $e) {
             error_log('[quiz] historique non enregistré : ' . $e->getMessage());
             flash('erreur', "Ton historique n'a pas pu être enregistré (détails dans les journaux du serveur).");
@@ -60,18 +60,19 @@ function pageAccueil(?array $valeurs = null, array $erreurs = [], int $statut = 
 {
     [$statiques, $generateurs] = banque();
     $histo = chargerHistorique();
+    // Par chapitre : questions de la banque, questions tirées des cours, générateurs (pour le résumé en direct).
     $comptes = array_fill_keys(array_keys(TITRES), 0);
+    $comptesCours = $comptes;
     foreach ($statiques as $q) {
         $comptes[$q['ch']]++;
+        $comptesCours[$q['ch']] += $q['cours'] ? 1 : 0;
     }
-    $valeurs ??= [
-        'mode' => 'normal',
-        'n' => 15,
-        'chapitres' => array_map('strval', array_keys(TITRES)),
-        'cours' => false,
-        'graine' => null,
-        'graine_texte' => '',
-    ];
+    $generes = array_fill_keys(array_keys(TITRES), 0);
+    foreach ($generateurs as [$chapitre]) {
+        $generes[$chapitre]++;
+    }
+    $partie = partieEnCours();
+    $valeurs ??= derniersReglages($partie) ?? reglagesParDefaut();
 
     rendre('accueil', [
         'titre' => 'Accueil',
@@ -79,14 +80,16 @@ function pageAccueil(?array $valeurs = null, array $erreurs = [], int $statut = 
         'valeurs' => $valeurs,
         'erreurs' => $erreurs,
         'comptes' => $comptes,
+        'comptesCours' => $comptesCours,
+        'generes' => $generes,
         'total' => count($statiques),
         'nbGenerateurs' => count($generateurs),
         'nbCours' => count(array_filter($statiques, static fn (array $q): bool => $q['cours'])),
         'aRevoir' => nombreARevoir($statiques, $histo),
         'nbSessions' => count($histo['sessions']),
-        'partie' => partieEnCours(),
+        'record' => meilleureSerieHistorique($histo),
+        'partie' => $partie,
         'fragiles' => chapitresFragiles(statistiquesHistorique($histo, $statiques)['chapitres']),
-        'preselections' => preselectionsChapitres(),
     ], $statut);
 }
 
@@ -129,14 +132,22 @@ function pageQuestion(): never
     if ($q === null) {
         rediriger('/bilan');
     }
+    $maintenant = microtime(true);
+    if (!questionAffichee($partie)) {
+        $partie = marquerAffichage($partie, $maintenant); // départ du minuteur, mémorisé côté serveur
+        memoriserPartie($partie);
+    }
 
     rendre('question', [
-        'titre' => 'Question ' . (positionPartie($partie) + 1) . ' sur ' . count($partie['questions']),
+        'titre' => 'Question ' . (positionPartie($partie) + 1) . ($partie['mode'] === 'serie' ? '' : ' sur ' . count($partie['questions'])),
         'page' => 'jeu',
         'partie' => $partie,
         'q' => $q,
         'numero' => positionPartie($partie) + 1,
         'total' => count($partie['questions']),
+        'restant' => tempsRestant($partie, $maintenant),
+        'serie' => serieEnCours($partie),
+        'score' => scorePartie($partie),
     ]);
 }
 
@@ -155,13 +166,22 @@ function actionRepondre(): never
         rediriger($q === null ? '/bilan' : '/question');
     }
 
+    if (!questionAffichee($partie)) {
+        // réponse envoyée sans avoir affiché la question : le minuteur n'a pas pu démarrer
+        rediriger('/question');
+    }
+
     ['reponse' => $reponse, 'erreur' => $erreur] = validerReponse($q, $_POST);
     if ($reponse === null) {
         flash('erreur', (string) $erreur);
         rediriger('/question');
     }
 
-    $partie = repondre($partie, $reponse);
+    $partie = repondre($partie, $reponse, microtime(true));
+    $resultat = $partie['resultats'][positionPartie($partie) - 1];
+    if ($resultat['statut'] === 'temps' && empty($reponse['temps'])) {
+        flash('info', 'Temps écoulé : ta réponse est arrivée après la limite, elle ne compte pas.');
+    }
     if ($partie['terminee']) {
         $partie = cloturerPartie($partie);
     }
@@ -169,6 +189,11 @@ function actionRepondre(): never
 
     if ($partie['mode'] === 'examen') {
         rediriger($partie['terminee'] ? '/bilan' : '/question');
+    }
+    if ($partie['mode'] === 'serie' && $resultat['statut'] === 'ok' && !$partie['terminee']) {
+        // en série, une bonne réponse enchaîne directement sur la question suivante
+        flash('succes', 'Bonne réponse ! Série en cours : ' . serieEnCours($partie) . '.');
+        rediriger('/question');
     }
     rediriger('/correction');
 }
@@ -187,11 +212,14 @@ function pageCorrection(): never
     rendre('correction', [
         'titre' => 'Correction',
         'page' => 'jeu',
+        'partie' => $partie,
         'q' => $partie['questions'][$traitees - 1],
         'resultat' => $partie['resultats'][$traitees - 1],
         'numero' => $traitees,
         'total' => count($partie['questions']),
         'terminee' => $partie['terminee'],
+        'serie' => serieEnCours($partie),
+        'score' => scorePartie($partie),
     ]);
 }
 
@@ -217,11 +245,13 @@ function pageBilan(): never
         rediriger('/question');
     }
 
+    $bilan = bilanPartie($partie);
     rendre('bilan', [
         'titre' => 'Bilan',
         'page' => 'jeu',
         'partie' => $partie,
-        'bilan' => bilanPartie($partie),
+        'bilan' => $bilan,
+        'etape' => prochaineEtape($partie, $bilan),
     ]);
 }
 
@@ -251,16 +281,48 @@ function actionRefaireErreurs(): never
 function pageStats(): never
 {
     [$statiques] = banque();
+    $stats = statistiquesHistorique(chargerHistorique(), $statiques);
     rendre('stats', [
         'titre' => 'Statistiques',
         'page' => 'stats',
-        'stats' => statistiquesHistorique(chargerHistorique(), $statiques),
+        'stats' => $stats,
+        'fragiles' => chapitresFragiles($stats['chapitres']),
     ]);
 }
 
 function pageSources(): never
 {
     rendre('sources', ['titre' => 'Sources et licences', 'page' => 'sources']);
+}
+
+/**
+ * Fiches de révision : sommaire des chapitres, fiches d'un chapitre (?ch=05) ou résultats d'une recherche (?q=pdo).
+ * Le chapitre est validé par liste blanche (TITRES) : un chapitre inconnu donne un 404.
+ */
+function pageFiches(): never
+{
+    [$statiques, $generateurs] = banque();
+    $chapitre = $_GET['ch'] ?? null;
+    if ($chapitre !== null && (!is_string($chapitre) || !isset(TITRES[$chapitre]))) {
+        erreurHttp(404, 'Chapitre introuvable', "Ce chapitre n'existe pas : choisis-en un dans la liste des fiches.");
+    }
+    $recherche = $chapitre === null ? validerRecherche($_GET['q'] ?? '') : '';
+
+    $comptes = array_fill_keys(array_keys(TITRES), 0);
+    foreach ($statiques as $q) {
+        $comptes[$q['ch']]++;
+    }
+    $generesParChapitre = array_count_values(array_map(static fn (array $g): string => $g[0], $generateurs));
+
+    rendre('fiches', [
+        'titre' => $chapitre !== null ? 'Fiches · ' . TITRES[$chapitre] : 'Fiches de révision',
+        'page' => 'fiches',
+        'chapitre' => $chapitre,
+        'recherche' => $recherche,
+        'fiches' => $chapitre !== null || $recherche !== '' ? filtrerFiches($statiques, $chapitre, $recherche) : [],
+        'comptes' => $comptes,
+        'generes' => $generesParChapitre,
+    ]);
 }
 
 function pageReinitialiser(): never

@@ -47,10 +47,31 @@ function statistiquesHistorique(array $histo, array $statiques): array
         'sessions' => count($sessions),
         'reponses' => (int) $total,
         'reussite' => $total > 0 ? (int) round(100 * $ok / $total) : 0,
+        'meilleure_serie' => meilleureSerieHistorique($histo),
+        'temps_moyen' => tempsMoyenHistorique($sessions),
         'chapitres' => $chapitres,
         'pires' => array_slice($pires, 0, 8),
         'progression' => progressionParties($sessions),
     ];
+}
+
+/**
+ * Temps moyen par réponse sur les parties où il a été mesuré (pondéré par le nombre de réponses), ou null.
+ *
+ * @param list<array<string,mixed>> $sessions
+ */
+function tempsMoyenHistorique(array $sessions): ?float
+{
+    $somme = 0.0;
+    $nombre = 0;
+    foreach ($sessions as $s) {
+        if (isset($s['duree_moyenne']) && is_numeric($s['duree_moyenne']) && (int) ($s['total'] ?? 0) > 0) {
+            $somme += (float) $s['duree_moyenne'] * (int) $s['total'];
+            $nombre += (int) $s['total'];
+        }
+    }
+
+    return $nombre === 0 ? null : round($somme / $nombre, 1);
 }
 
 /**

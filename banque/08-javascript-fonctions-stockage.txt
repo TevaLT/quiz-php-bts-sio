@@ -1,7 +1,7 @@
-// Banque de questions — chapitre 28 : JavaScript, console, Web Storage, fonctions et JSON
-// Questions inspirées du cours « JavaScript Vanilla — Approfondissement » (T. Ferut, CC BY-SA 4.0).
+// Banque de questions — chapitre 25 : JavaScript, console, fonctions, objets, JSON et Web Storage
+// Questions inspirées du cours « JavaScript Vanilla — Approfondissement » (T. Ferut, CC BY-SA 4.0), complétées.
 
-# 28
+# 25
 
 Q: Que fait console.error("Erreur simulée") ? [cours]
 + Il affiche un message classé « erreur », sans lancer d'exception
@@ -45,9 +45,9 @@ Q: Pourquoi un simple console.log n'est-il pas un test fonctionnel complet ? [co
 - Il ne fonctionne que dans les navigateurs récents sur ordinateur
 ? Un test compare un résultat obtenu à un résultat attendu, sur un cas nominal, une limite et une entrée incorrecte. Afficher une valeur n'en vérifie rien.
 
-Q: Pourquoi une variable JavaScript ne suffit-elle pas à conserver un inventaire ? [cours]
+Q: Pourquoi une variable JavaScript ne suffit-elle pas à conserver des données d'une visite à l'autre ? [cours]
 + Le script est recréé à chaque chargement : la variable repart de zéro
-- Une variable ne peut contenir qu'un seul produit à la fois
+- Une variable ne peut contenir qu'une seule valeur à la fois
 - Les variables sont envoyées au serveur puis supprimées aussitôt
 - Un navigateur n'autorise que dix variables par script chargé
 ? let total = 3 n'existe que dans le contexte d'exécution ; un nouveau chargement recrée le script. D'où Web Storage pour de petites données, ou une base de données côté serveur.
@@ -94,19 +94,19 @@ Q: Pourquoi vérifier brut !== null avant Number(brut) pour une valeur lue dans 
 - Number() refuse toute valeur provenant d'un stockage du navigateur
 ? Une clé absente donne null ; sans le test, une quantité inexistante serait confondue avec une quantité nulle.
 
-Q: Pourquoi servir les exercices depuis http://localhost plutôt que d'ouvrir le fichier avec file:// ? [cours]
+Q: Pourquoi servir une page depuis http://localhost plutôt que de l'ouvrir avec file:// ? [cours]
 + Une origine HTTP stable évite les comportements particuliers de file://
 - Le navigateur refuse d'exécuter un script ouvert depuis le disque
 - localStorage n'existe que pour les pages servies en HTTPS
 - Les DevTools sont désactivés pour les fichiers ouverts localement
-? Avec file://, le comportement de Web Storage peut être limité ou varier. On sert la page avec un petit serveur local (python -m http.server, Live Server…) et on inspecte l'onglet Application/Stockage. Ce serveur sert aux essais locaux, pas à la production.
+? Avec file://, le comportement de Web Storage, des modules et de fetch peut être limité ou varier. On sert la page avec un petit serveur local (php -S, python -m http.server, Live Server…). Ce serveur sert aux essais locaux, pas à la production.
 
 Q: Pourquoi ne jamais stocker un mot de passe ou un jeton sensible dans localStorage ? [cours]
 + Tout JavaScript de la même origine peut le lire, et l'utilisateur peut le modifier
 - Le navigateur chiffre automatiquement les valeurs, qui deviennent inutilisables
 - localStorage est effacé à chaque rechargement, ce qui perdrait la valeur
 - Les valeurs sont envoyées au serveur à chaque requête, de façon visible
-? Web Storage n'a ni contrôle d'accès métier ni confidentialité : un script de la même origine (par exemple injecté par XSS) peut tout lire. Pas de données sensibles dans un exercice, et encore moins de données de santé.
+? Web Storage n'a ni contrôle d'accès métier ni confidentialité : un script de la même origine (par exemple injecté par XSS) peut tout lire. On n'y place aucune donnée sensible.
 
 Q: Que supprime localStorage.clear() ? [cours]
 + Toutes les clés de l'origine, y compris celles d'autres usages
@@ -132,13 +132,13 @@ Q: Quand les instructions d'une fonction s'exécutent-elles ? [cours]
 - Quand le navigateur est inactif, en arrière-plan
 ? Déclarer une fonction ne l'exécute pas ; les parenthèses déclenchent l'exécution, autant de fois qu'on le veut. Une fonction a une responsabilité identifiable et un nom qui exprime une action.
 
-Q: Dans cet extrait, que sont nom et quantite d'une part, "Pansements" et 4 d'autre part ? [cours]
-|function afficherProduit(nom, quantite) { ... }
-|afficherProduit("Pansements", 4);
-+ nom et quantite sont des paramètres ; "Pansements" et 4 sont des arguments
-- nom et quantite sont des arguments ; "Pansements" et 4 sont des paramètres
+Q: Dans cet extrait, que sont nom et quantite d'une part, "Stylo" et 4 d'autre part ? [cours]
+|function afficherArticle(nom, quantite) { ... }
+|afficherArticle("Stylo", 4);
++ nom et quantite sont des paramètres ; "Stylo" et 4 sont des arguments
+- nom et quantite sont des arguments ; "Stylo" et 4 sont des paramètres
 - Ce sont tous des variables globales créées par l'appel de la fonction
-- nom et quantite sont des constantes ; "Pansements" et 4 des propriétés
+- nom et quantite sont des constantes ; "Stylo" et 4 des propriétés
 ? Paramètre : nom local à la fonction, donné à la définition. Argument : valeur transmise lors de chaque appel.
 
 Q: JavaScript vérifie-t-il le type des paramètres d'une fonction ? [cours]
@@ -146,7 +146,7 @@ Q: JavaScript vérifie-t-il le type des paramètres d'une fonction ? [cours]
 - Oui : un paramètre déclaré sans type refuse toute valeur
 - Oui : le type est déduit du premier argument transmis
 - Non, mais une alerte s'affiche si le type change au second appel
-? C'est pourquoi les fonctions de validation (estQuantiteValide, convertirQuantite) contrôlent elles-mêmes ce qu'elles reçoivent.
+? C'est pourquoi une fonction de validation contrôle elle-même ce qu'elle reçoit (Number.isInteger, typeof…).
 
 Q: Que vaut r à la fin de ce code ? [cours]
 |function double(x) {
@@ -159,15 +159,15 @@ Q: Que vaut r à la fin de ce code ? [cours]
 - NaN : double n'a pas reçu de valeur numérique valide
 ? Une fonction qui se termine sans return renvoie undefined. console.log n'est pas une alternative à return : afficher produit un effet, retourner transmet une valeur exploitable par l'appelant.
 
-Q: Que renvoie estQuantiteValide("3") ? [cours]
-|function estQuantiteValide(quantite) {
-|    return Number.isInteger(quantite) && quantite >= 0;
+Q: Que renvoie estEntierPositif("3") ? [cours]
+|function estEntierPositif(valeur) {
+|    return Number.isInteger(valeur) && valeur >= 0;
 |}
 + false : Number.isInteger ne convertit pas "3"
 - true : "3" représente bien un entier positif
 - NaN : on ne peut pas comparer une chaîne à zéro
 - Une TypeError : la fonction attend un nombre
-? La fonction attend une valeur number déjà convertie à l'entrée : avec "3" (chaîne), Number.isInteger renvoie false. On retourne directement la condition, sans if/else redondant.
+? La fonction attend une valeur number déjà convertie : avec "3" (chaîne), Number.isInteger renvoie false. On retourne directement la condition, sans if/else redondant.
 
 Q: Que se passe-t-il avec ces deux appels ? [cours]
 |const seuilAlerte = 5;
@@ -183,20 +183,20 @@ Q: Que se passe-t-il avec ces deux appels ? [cours]
 - Le premier lève une ReferenceError : seuilAlerte est inaccessible
 ? quantite et resultat sont locaux à la fonction. La fonction, elle, peut lire seuilAlerte, déclarée dans un contexte englobant.
 
-Q: Que renvoie afficherStock("Gants", null) ? [cours]
-|function afficherStock(nom, quantite = 0) {
+Q: Que renvoie afficherLigne("Stylo", null) ? [cours]
+|function afficherLigne(nom, quantite = 0) {
 |    if (nom.trim() === "") {
-|        return "Nom de produit obligatoire";
+|        return "Nom obligatoire";
 |    }
 |    return `${nom} : ${quantite}`;
 |}
-+ "Gants : null" : seul undefined active la valeur par défaut
-- "Gants : 0" : null déclenche aussi la valeur par défaut
-- "Gants : undefined" : la valeur transmise est ignorée
-- "Nom de produit obligatoire" : null est considéré comme vide
++ "Stylo : null" : seul undefined active la valeur par défaut
+- "Stylo : 0" : null déclenche aussi la valeur par défaut
+- "Stylo : undefined" : la valeur transmise est ignorée
+- "Nom obligatoire" : null est considéré comme vide
 ? Le paramètre par défaut s'applique si l'argument est absent ou undefined. Passer null ne l'active pas : il faut valider séparément les types.
 
-Q: À quoi sert le premier return dans afficherStock lorsque nom est vide ? [cours]
+Q: Dans afficherLigne, à quoi sert le premier return lorsque nom est vide ? [cours]
 + À quitter la fonction tout de suite : la suite est ignorée
 - À retarder le retour du résultat jusqu'à la fin de la fonction
 - À afficher le message dans la console sans quitter la fonction
@@ -210,7 +210,7 @@ Q: Pourquoi if (quantite) est-il un mauvais test pour savoir si un produit exist
 - Le test lève une exception quand quantite vaut null
 ? Les valeurs falsy sont false, 0, -0, 0n, "", null, undefined et NaN. Pour distinguer « stock à zéro » de « produit absent », on compare explicitement : quantite !== null.
 
-Q: recupProduit renvoie 0 pour « Gants » (épuisé) et null pour un article absent. Quelle vérification est correcte ? [cours]
+Q: Une fonction renvoie 0 pour un article épuisé et null pour un article inconnu. Quelle vérification indique que l'article existe ? [cours]
 + quantite !== null
 - if (quantite)
 - if (!quantite)
@@ -222,10 +222,10 @@ Q: Pourquoi les fonctions de calcul ne contiennent-elles ni prompt() ni alert() 
 - prompt() est interdit à l'intérieur d'une fonction par le standard
 - alert() ralentit toutes les fonctions du même fichier de script
 - Une fonction ne peut pas afficher de texte à l'utilisateur
-? Le traitement de stock peut rester indépendant de la façon de saisir ou d'afficher : prompt et alert seront remplacés par de vrais champs HTML (DOM) sans toucher à la logique métier.
+? Le calcul reste indépendant de la façon de saisir ou d'afficher : prompt et alert seront remplacés par de vrais champs HTML (DOM) sans toucher à la logique métier.
 
 Q: Que vaut produit.quantite à la fin de ce code ? [cours]
-|const produit = { nom: "Pansements", quantite: 12 };
+|const produit = { nom: "Stylo", quantite: 12 };
 |produit.quantite += 3;
 = 15
 ? const empêche de réaffecter produit, pas de modifier les propriétés de l'objet. Un objet regroupe les propriétés liées à une même entité.
@@ -256,7 +256,7 @@ Q: Que se passe-t-il avec JSON.parse("invalide") ? [cours]
 - La fonction renvoie null sans rien signaler
 - La fonction renvoie la chaîne "invalide" inchangée
 - La fonction renvoie NaN, comme Number("invalide")
-? Un JSON illisible lève une exception. lireStock() intercepte l'erreur et renvoie null pour signaler « lecture impossible ».
+? Un JSON illisible lève une exception. Une fonction de lecture intercepte l'erreur et renvoie null pour signaler « lecture impossible ».
 
 Q: Pourquoi tester Array.isArray(stock) après JSON.parse(brut) ? [cours]
 + Un JSON valide peut contenir autre chose qu'un tableau : objet, nombre, texte
@@ -265,26 +265,26 @@ Q: Pourquoi tester Array.isArray(stock) après JSON.parse(brut) ? [cours]
 - Array.isArray remplace l'appel à JSON.parse pour les tableaux
 ? Faire confiance au stockage est une erreur : un JSON valide peut représenter un autre type que celui attendu. On contrôle la structure (et idéalement chaque produit : nom et quantite).
 
-Q: lireStock() renvoie [] ou null. Que signifient ces deux valeurs ? [cours]
-+ [] : aucun stock enregistré ; null : lecture impossible, on ne doit pas écraser les données
-- [] : lecture impossible ; null : aucun stock enregistré pour le moment
-- Les deux signifient « aucun stock » : on peut écrire par-dessus dans les deux cas
-- null signifie un stock vide ; [] signifie que la clé a été supprimée
-? null indique une erreur à traiter ; [] représente un inventaire réellement vide. Si la lecture initiale échoue, on bloque les modifications pour ne pas écraser un stock devenu illisible.
+Q: Une fonction de lecture du stockage renvoie [] ou null. Que signifient ces deux valeurs ? [cours]
++ [] : rien d'enregistré ; null : lecture impossible, on ne doit pas écraser les données
+- [] : lecture impossible ; null : rien d'enregistré pour le moment
+- Les deux signifient « rien d'enregistré » : on peut écrire par-dessus dans les deux cas
+- null signifie une liste vide ; [] signifie que la clé a été supprimée
+? null indique une erreur à traiter ; [] représente une liste réellement vide. Si la lecture initiale échoue, on bloque les modifications pour ne pas écraser des données devenues illisibles.
 
-Q: Pourquoi enregistrerStock() renvoie-t-elle true ou false ? [cours]
+Q: Pourquoi une fonction qui écrit dans localStorage devrait-elle renvoyer true ou false ? [cours]
 + setItem peut échouer : ne pas afficher « enregistré » à tort
-- Pour compter le nombre de produits écrits dans localStorage
+- Pour compter le nombre d'éléments écrits dans localStorage
 - Parce que setItem renvoie toujours un booléen par définition
 - Pour verrouiller le stockage pendant que le script s'exécute
 ? Quota dépassé, accès refusé, mode privé : l'écriture peut lever une exception. La fonction n'annonce true qu'après un setItem réussi ; le script informe l'utilisateur sinon.
 
-Q: Pourquoi nommer la clé « pharmacie.stock.v1 » plutôt que « stock » ? [cours]
-+ Un nom explicite et versionné évite de mélanger formats et exercices différents
+Q: Pourquoi nommer une clé localStorage « monapp.panier.v1 » plutôt que « panier » ? [cours]
++ Un nom explicite et versionné évite de mélanger formats et applications différentes
 - Le navigateur impose un point et un numéro de version dans les clés
 - Une clé courte est refusée par localStorage en dessous de dix caractères
 - Le suffixe v1 active automatiquement la sauvegarde sur le serveur
-? Une clé stable, explicite et versionnée documente le format JSON stocké et évite les collisions avec d'autres données de la même origine.
+? Une clé stable, explicite et versionnée documente le format JSON stocké et évite les collisions avec d'autres données de la même origine. Si le format change, on passe à v2.
 
 Q: Que peut-on dire de JSON ? [cours]
 + C'est un format d'échange de données : il ne fournit ni stockage ni sécurité
@@ -293,20 +293,13 @@ Q: Que peut-on dire de JSON ? [cours]
 - C'est un langage de programmation exécuté par le moteur JavaScript
 ? JSON décrit comment représenter des données sous forme de texte ; il ne dit rien de l'endroit où on les conserve ni de leur protection.
 
-Q: Dans le cas du pharmacien, que fait ajouterProduit pour un produit déjà présent ? [cours]
-+ Il met à jour sa quantité au lieu de créer une ligne identique
-- Il ajoute une seconde ligne avec la nouvelle quantité
-- Il refuse l'ajout et renvoie false dans tous les cas
-- Il additionne les deux quantités sans possibilité de les remplacer
-? C'est un choix du cahier des charges de l'exercice (« règle de doublon »), pas une règle universelle.
-
 Q: Que renvoie findIndex quand aucun produit ne correspond à la condition ? [cours]
 |stock.findIndex(produit => produit.nom.toLowerCase() === nom.toLowerCase())
 + -1 : à ne pas confondre avec l'indice 0, qui est valide
 - 0 : l'indice du premier élément par défaut
 - null : l'absence est toujours matérialisée par null
 - undefined, comme pour un indice hors du tableau
-? findIndex renvoie le premier indice qui répond à la condition, ou -1. Comparer en minuscules des deux côtés rend la recherche insensible à la casse : « Pansements » et « pansements » désignent le même produit.
+? findIndex renvoie le premier indice qui répond à la condition, ou -1. Comparer en minuscules des deux côtés rend la recherche insensible à la casse : « Stylo » et « stylo » désignent le même produit.
 
 Q: Pourquoi comparer le choix du menu à "1" (une chaîne) et non à 1 ? [cours]
 + prompt() renvoie du texte et switch compare strictement
@@ -315,19 +308,12 @@ Q: Pourquoi comparer le choix du menu à "1" (une chaîne) et non à 1 ? [cours]
 - Un menu ne peut contenir que des choix de type string
 ? prompt() renvoie "1", "2"… : avec ===, 1 ne correspond pas à "1". Chaque branche du switch appelle une fonction spécialisée : le menu dirige, les fonctions travaillent.
 
-Q: Que fait stock.map(p => ({ ...p })) dans ajouterSansEffet ? [cours]
+Q: Que fait stock.map(p => ({ ...p })) ? [cours]
 + Il crée un nouveau tableau d'objets copiés, sans toucher à l'original
-- Il modifie chaque produit du stock directement en mémoire
-- Il enregistre immédiatement chaque produit dans localStorage
-- Il supprime les produits dont la quantité vaut zéro
+- Il modifie chaque objet du tableau directement en mémoire
+- Il enregistre immédiatement chaque objet dans localStorage
+- Il supprime les objets dont la quantité vaut zéro
 ? map() et la syntaxe ... créent de nouveaux objets simples (copie superficielle). On n'adopte l'état modifié qu'après une sauvegarde effective : un tableau modifié en mémoire n'est pas une sauvegarde réussie.
-
-Q: Que doit contenir une recette de test reproductible par un autre étudiant ? [cours]
-+ Préconditions, action, résultat attendu, résultat obtenu et verdict
-- Seulement la liste des fonctions écrites et leur nombre de lignes
-- Uniquement les captures d'écran de la page après les tests
-- Le code source complet, sans résultat attendu précisé
-? On réinitialise d'abord le seul stockage du projet, puis on teste entrées, fonctions et persistance, en traçant pour chaque scénario : attendu, obtenu, conforme / non conforme. Minimum demandé : dix scénarios, dont les cas d'erreur.
 
 Q: Que fait continue dans cette boucle de saisie ? [cours]
 |while (true) {
@@ -353,3 +339,37 @@ Q: Que mesure console.timeEnd("saisie-stock") autour d'une boucle de prompt() ? 
 - Le temps de chargement de la page avant l'exécution du script
 - Le temps d'envoi des saisies au serveur de l'application
 ? Le chronomètre court tant qu'il n'est pas arrêté : les boîtes de dialogue bloquantes comptent. Les mesures sont indicatives.
+
+Q: Quelle fonction fléchée équivaut à function (x) { return x * 2; } ?
++ x => x * 2
+- x -> x * 2
+- (x) => { x * 2 }
+- function => x * 2
+? Avec un seul paramètre et une seule expression, les parenthèses et le return sont implicites. Avec des accolades, il faut écrire return : (x) => { return x * 2; }.
+
+Q: Que renvoie [1, 2, 3, 4].filter(n => n % 2 === 0) ?
+= [2, 4] | 2, 4
+i: format : [1, 2]
+? filter renvoie un NOUVEAU tableau avec les éléments pour lesquels la fonction renvoie true. Le tableau d'origine est inchangé.
+
+Q: Que renvoie [1, 2, 3].reduce((somme, n) => somme + n, 0) ?
+= 6
+? reduce combine les éléments un par un dans un accumulateur, ici initialisé à 0 : 0 + 1, puis + 2, puis + 3. Sans valeur initiale, un tableau vide lèverait une TypeError.
+
+Q: Que vaut nom après const { nom } = { nom: "Ada", age: 36 }; ?
+= Ada
+? C'est la déstructuration d'objet : la variable prend la valeur de la propriété de même nom. const [a, b] = [1, 2]; fait de même pour un tableau.
+
+Q: Que vaut utilisateur?.adresse?.ville quand utilisateur vaut null ?
++ undefined, sans erreur : le chaînage optionnel s'arrête
+- null, la valeur de départ étant conservée
+- Une TypeError « Cannot read properties of null »
+- La chaîne vide, valeur par défaut d'une propriété absente
+? ?. court-circuite l'expression dès qu'un maillon vaut null ou undefined. Avec un simple point, lire adresse sur null lèverait une TypeError. On le combine souvent avec ?? pour une valeur par défaut.
+
+Q: Que renvoie Object.keys({ nom: "Ada", age: 36 }) ?
++ ["nom", "age"]
+- ["Ada", 36]
+- [["nom", "Ada"], ["age", 36]]
+- 2
+? Object.keys donne les noms des propriétés, Object.values leurs valeurs, Object.entries les paires [clé, valeur] (pratique avec for…of).

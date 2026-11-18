@@ -42,6 +42,23 @@ function enonceHtml(array $q): string
     return $html;
 }
 
+/**
+ * Étiquette visible d'une proposition corrigée : « Ta réponse » ou « Bonne réponse », en texte (pas seulement en
+ * couleur), pour comprendre la correction d'un coup d'œil. Chaîne vide pour une proposition fausse non choisie.
+ */
+function etiquetteChoix(bool $correcte, bool $choisie): string
+{
+    return match (true) {
+        $correcte && $choisie => '<span class="etiquette-choix ok"><span aria-hidden="true">✔</span> Ta réponse<span class="sr-only"> (juste)</span></span>',
+        $correcte => '<span class="etiquette-choix ok"><span aria-hidden="true">✔</span> Bonne réponse</span>',
+        $choisie => '<span class="etiquette-choix ko"><span aria-hidden="true">✘</span> Ta réponse<span class="sr-only"> (fausse)</span></span>',
+        default => '',
+    };
+}
+
+/** Petit symbole « code » de chaque bloc de chapitres (tuiles de l'accueil). */
+const ICONES_BLOCS = [1 => '$x', 2 => 'new', 3 => 'GET', 4 => 'SQL', 5 => 'API', 6 => 'JS'];
+
 // ───────────────────────────── Coloration syntaxique ─────────────────────────────
 
 /** Mots-clés colorés : PHP et JavaScript, puis SQL (en majuscules seulement, pour ne pas colorer du texte ordinaire). */
@@ -200,6 +217,12 @@ function classeTaux(?int $taux): string
 function formaterDuree(int $secondes): string
 {
     return $secondes >= 60 ? intdiv($secondes, 60) . ' min ' . sprintf('%02d', $secondes % 60) . ' s' : $secondes . ' s';
+}
+
+/** Durée courte avec une décimale, à la française : 8.4 → « 8,4 s » ; au-delà d'une minute, « 1 min 05 s ». */
+function formaterSecondes(float $secondes): string
+{
+    return $secondes >= 60 ? formaterDuree((int) round($secondes)) : number_format($secondes, 1, ',', '') . ' s';
 }
 
 /** « 2026-11-06 14:43 » → « 06/11/2026 14:43 » (date de l'historique). */

@@ -1,7 +1,7 @@
-// Banque de questions — chapitre 29 : JavaScript, le DOM et les événements
-// Questions inspirées du cours « JavaScript Vanilla — Le DOM et les événements » (T. Ferut, CC BY-SA 4.0).
+// Banque de questions — chapitre 26 : JavaScript, le DOM et les événements
+// Questions inspirées du cours « JavaScript Vanilla — Le DOM et les événements » (T. Ferut, CC BY-SA 4.0), complétées.
 
-# 29
+# 26
 
 Q: Quelle différence y a-t-il entre le code HTML source et le DOM ? [cours]
 + Le DOM est l'arbre construit en mémoire, qui peut différer du code source
@@ -178,7 +178,7 @@ Q: Pourquoi préférer classList à className pour changer l'état d'un élémen
 - className est supprimé des navigateurs récents
 ? className est la chaîne complète des classes ; classList offre add, remove, contains et toggle sur chaque classe.
 
-Q: Quelle répartition des rôles le cours recommande-t-il pour un état visuel « actif » ? [cours]
+Q: Quelle répartition des rôles adopter pour un état visuel « actif » ? [cours]
 + Le CSS décrit l'apparence de .forme.active ; JavaScript ajoute ou retire la classe
 - JavaScript écrit les couleurs dans element.style à chaque clic reçu
 - Le CSS lit l'état du clavier ; JavaScript ne fait que charger la feuille de style
@@ -197,7 +197,7 @@ Q: Que renvoie forme.closest(".ligne") ? [cours]
 - Le premier enfant de forme qui porte la classe ligne
 - Tous les éléments de classe ligne présents dans le document
 - Le frère suivant de forme, s'il porte la classe ligne
-? closest remonte l'élément puis ses ancêtres jusqu'au premier qui correspond au sélecteur. Utile pour retrouver, depuis une forme cliquée, le conteneur de sa ligne.
+? closest remonte l'élément puis ses ancêtres jusqu'au premier qui correspond au sélecteur. Utile pour retrouver, depuis l'élément cliqué, le conteneur qui l'englobe (une ligne, une carte…).
 
 Q: Que vaut typeof bouton.dataset.row pour <button data-row="2"> ? [cours]
 + "string" : les attributs data-* sont lus comme du texte
@@ -234,9 +234,9 @@ Q: Quel est le type de champ.value pour un <input type="number"> ? [cours]
 - Le type dépend de la valeur saisie par l'utilisateur
 ? La propriété value reflète la valeur actuelle saisie et reste une chaîne. On convertit explicitement avec Number(), puis on refuse la chaîne vide et les valeurs non finies.
 
-Q: Pourquoi refuser la saisie vide avant d'appeler Number() dans la calculatrice ? [cours]
+Q: Pourquoi refuser la saisie vide avant d'appeler Number() sur la valeur d'un champ ? [cours]
 + Number("") vaut 0 : une saisie vide serait prise pour un zéro valide
-- Number("") lève une TypeError qui bloquerait la calculatrice
+- Number("") lève une TypeError qui bloquerait le script
 - Number("") renvoie NaN, ce qui empêche toute addition
 - Les champs vides ne sont jamais envoyés par le navigateur
 ? On teste d'abord champ.value.trim() !== "", puis Number() et Number.isFinite() : la conversion seule ne distingue pas « vide » de « zéro ».
@@ -364,30 +364,16 @@ Q: Que permet step="any" sur un <input type="number"> ? [cours]
 - De valider le champ côté serveur avant l'envoi
 ? Par défaut, le pas est 1 et l'interface refuse les décimales. step="any" les accepte, mais ne remplace ni la validation en JavaScript (Number.isFinite) ni celle du serveur.
 
-Q: Au clic sur un carré de la matrice de formes, que doit-on faire ? [cours]
-+ Inverser son état, puis imposer ce nouvel état à tous les éléments de sa ligne
-- Inverser seulement son état, sans modifier les voisins
-- Inverser son état, puis imposer le nouvel état à sa ligne et à sa colonne
-- Remplir ou vider toute la matrice selon son état précédent
-? Rond : inverse son propre état. Carré : inverse son état puis l'impose à sa ligne. Losange : l'impose à sa ligne ET à sa colonne. Tout remplir / tout vider appliquent directement un booléen à toutes les formes.
-
-Q: Comment imposer à toute la ligne l'état du bouton cliqué ? [cours]
+Q: Comment imposer à tout un groupe d'éléments l'état du bouton cliqué ? [cours]
 |const actif = bouton.classList.toggle("active");
-|for (const forme of formesDeLaLigne) {
-|    forme.classList.toggle("active", actif);
+|for (const element of groupe) {
+|    element.classList.toggle("active", actif);
 |}
-+ toggle renvoie le nouvel état ; le second argument force cet état sur chaque forme
++ toggle renvoie le nouvel état ; le second argument force cet état sur chaque élément
 - toggle renvoie toujours true ; la boucle ajoute donc la classe partout
 - toggle renvoie la liste des classes ; la boucle les recopie une à une
 - toggle ne renvoie rien ; il faut relire la classe avec contains avant la boucle
-? actif mémorise le nouvel état du bouton cliqué ; toggle("active", actif) l'impose aux autres formes, qu'elles soient actives ou non.
-
-Q: Quel sélecteur récupère les formes de la ligne d'indice 2 de la matrice ? [cours]
-+ .forme[data-row="2"]
-- .forme.row-2
-- #forme[data-row=2]
-- .forme:row(2)
-? Les coordonnées sont portées par data-row et data-col : la position est disponible dans l'HTML fourni, donc dans les sélecteurs. La valeur vient ici d'un kit contrôlé : on ne concatène pas arbitrairement une saisie utilisateur dans un sélecteur.
+? actif mémorise le nouvel état du bouton cliqué ; toggle("active", actif) l'impose aux autres éléments, qu'ils soient actifs ou non.
 
 Q: Un script exécute document.querySelector("#message").textContent = "OK" et la console signale une erreur sur null. Quelle est la cause la plus probable ? [cours]
 + Le sélecteur ne trouve rien : élément absent ou pas encore créé
@@ -410,9 +396,30 @@ Q: Un calcul concatène deux chaînes au lieu d'additionner, alors que tous les 
 - Présentation : la feuille de style masque le résultat
 ? Identifier le niveau fautif : sélection, événement, conversion, règle métier, présentation. Le DOM peut fonctionner alors que la logique est fausse : "2" + "3" donne "23".
 
-Q: Que vérifie la recette fonctionnelle du module DOM ? [cours]
-+ Structure, sélecteurs, conversions, événements et matrice
-- Uniquement l'apparence de la page dans un seul navigateur
-- Seulement que le script se charge sans afficher d'erreur
-- Le temps de chargement des images et des polices
-? Structure HTML valide (defer, labels, boutons accessibles) ; sélecteurs trouvés ou introuvables ; conversions (vide, décimal, négatif, zéro) ; événements click, input, submit, aussi au clavier ; matrice (ronds, lignes, colonne, losange, actions globales). On garde une preuve : précondition, action, attendu, observé, verdict.
+Q: Qu'est-ce que la délégation d'événements ?
++ Un seul écouteur sur un parent, qui identifie l'enfant concerné avec event.target
+- Un écouteur ajouté automatiquement à chaque nouvel élément créé
+- Le transfert d'un événement d'un onglet du navigateur à un autre
+- L'exécution d'un gestionnaire sur le serveur plutôt que dans la page
+? Grâce au bouillonnement, un clic sur un <li> remonte jusqu'au <ul>. Un écouteur sur la liste, avec event.target.closest("li"), gère aussi les éléments ajoutés plus tard.
+
+Q: Quelle différence y a-t-il entre event.preventDefault() et event.stopPropagation() ?
++ preventDefault annule l'action par défaut ; stopPropagation empêche l'événement de remonter aux parents
+- preventDefault empêche l'événement de remonter ; stopPropagation annule l'action par défaut
+- Les deux sont équivalentes et peuvent être utilisées l'une pour l'autre
+- preventDefault supprime l'écouteur ; stopPropagation supprime l'élément
+? Un lien cliqué peut ne pas naviguer (preventDefault) tout en prévenant ses parents ; ou l'inverse. On évite stopPropagation sans raison : il casse la délégation d'événements.
+
+Q: Un bouton placé dans une div porte un écouteur click, la div aussi. Dans quel ordre s'exécutent-ils lors d'un clic sur le bouton ?
++ Celui du bouton, puis celui de la div : l'événement bouillonne vers les parents
+- Celui de la div, puis celui du bouton : le parent passe toujours en premier
+- Seulement celui du bouton : un événement ne concerne qu'un élément
+- Dans un ordre aléatoire, selon le navigateur utilisé
+? Par défaut, les écouteurs réagissent pendant la phase de bouillonnement, de la cible vers la racine. L'option { capture: true } fait réagir un parent pendant la phase de capture, avant la cible.
+
+Q: Pourquoi utiliser element.dataset plutôt que des variables globales pour associer une donnée à un bouton ?
++ La donnée reste attachée à l'élément, dans le HTML : data-id="7" devient dataset.id
+- dataset chiffre la valeur pour qu'elle ne soit pas lisible
+- dataset convertit automatiquement la valeur en nombre
+- Les variables globales sont interdites dans un écouteur d'événement
+? Les attributs data-* transportent une information propre à chaque élément (identifiant, rang…). Leur valeur est toujours une chaîne : on la convertit avec Number() si besoin.

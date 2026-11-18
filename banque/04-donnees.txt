@@ -1,6 +1,122 @@
-// Banque de questions — chapitres 14 à 18 (bases de données, PDO, transactions, authentification)
+// Banque de questions — chapitres 16 à 19 : fichiers, dates, JSON, SQL et PDO
+// Format : voir banque/README.md   ([cours] = notion tirée d'un cours, voir SOURCES.md)
 
-# 14
+# 16
+
+Q: Que retourne file_get_contents('notes.txt') quand le fichier existe ?
++ Tout le contenu du fichier, dans une seule chaîne
+- Un tableau contenant une ligne du fichier par élément
+- Une ressource à lire ensuite avec fgets()
+- Le nombre d'octets contenus dans le fichier
+? Pour obtenir un tableau de lignes : file('notes.txt', FILE_IGNORE_NEW_LINES). En cas d'échec, file_get_contents renvoie false (avec un Warning).
+
+Q: Que fait file_put_contents('journal.txt', $ligne, FILE_APPEND) ?
++ Il ajoute $ligne à la fin du fichier sans effacer son contenu
+- Il remplace tout le contenu du fichier par $ligne
+- Il ajoute $ligne au début du fichier
+- Il refuse d'écrire si le fichier existe déjà
+? Sans FILE_APPEND, le fichier est écrasé. Ajouter LOCK_EX (FILE_APPEND | LOCK_EX) évite que deux requêtes simultanées mélangent leurs lignes.
+
+Q: Que fait fopen($chemin, 'w') ?
++ Il ouvre le fichier en écriture et le vide (en le créant s'il n'existe pas)
+- Il ouvre le fichier en lecture seule, sans rien modifier
+- Il ouvre le fichier en écriture à la fin, sans rien effacer
+- Il échoue si le fichier existe déjà sur le disque
+? Modes courants : 'r' lecture, 'w' écriture avec troncature, 'a' ajout à la fin, 'x' création exclusive, 'c+' lecture/écriture sans troncature. On ferme avec fclose().
+
+Q: À quoi sert flock() sur un fichier ouvert ?
++ À empêcher que deux scripts écrivent en même temps dans le même fichier
+- À chiffrer le contenu du fichier pendant l'écriture
+- À interdire la lecture du fichier par le navigateur
+- À compresser le fichier pour gagner de la place
+? Deux requêtes qui lisent, modifient puis réécrivent le même fichier peuvent s'écraser. flock($f, LOCK_EX) donne l'accès exclusif le temps de l'opération.
+
+Q: Pourquoi écrire while (($ligne = fgets($f)) !== false) plutôt que while ($ligne = fgets($f)) ?
++ Une dernière ligne valant "0" est falsy et arrêterait la boucle trop tôt
+- fgets renvoie toujours true, il faut donc le comparer à false
+- La comparaison stricte rend la lecture beaucoup plus rapide
+- Sans les parenthèses, fgets lirait le fichier à l'envers
+? fgets renvoie la ligne lue ou false à la fin du fichier. Comme pour strpos, on distingue « valeur falsy » et « échec » avec !== false.
+
+Q: Que retourne json_decode('{"age": 36}', true) ?
++ Un tableau associatif ['age' => 36]
+- Un objet stdClass dont la propriété age vaut 36
+- La chaîne '{"age": 36}' inchangée
+- L'entier 36, seule valeur du document JSON
+? Sans le second argument (ou avec false), json_decode renvoie un objet stdClass : $objet->age. Avec true, on obtient un tableau : $t['age'].
+
+Q: Que retourne json_decode('{invalide') ?
++ null, et json_last_error() signale l'erreur de syntaxe
+- false, comme la plupart des fonctions qui échouent
+- Une chaîne vide, car aucun contenu n'a été décodé
+- Un tableau vide, valeur par défaut de json_decode
+? Piège : le JSON valide 'null' donne aussi null. Avec JSON_THROW_ON_ERROR, une JsonException distingue clairement les deux cas.
+
+Q: Pourquoi json_encode avec JSON_THROW_ON_ERROR ? [cours]
++ Un échec de sérialisation devient une exception explicite
+- Pour que le JSON soit toujours indenté
+- Pour chiffrer le JSON avant l'envoi
+- Pour accélérer l'encodage des grands tableaux
+? JSON_UNESCAPED_UNICODE conserve les accents tels quels dans le JSON.
+
+Q: Que change l'option JSON_UNESCAPED_UNICODE de json_encode ?
++ Les accents sont écrits tels quels au lieu de séquences é
+- Les chaînes sont converties en ASCII en supprimant les accents
+- Les clés du tableau sont écrites sans guillemets
+- Le JSON produit est indenté sur plusieurs lignes
+? json_encode(['nom' => 'Élodie']) donne {"nom":"Élodie"} par défaut. Les deux formes sont du JSON valide ; l'option rend le résultat lisible. JSON_PRETTY_PRINT, lui, indente.
+
+Q: Quel avantage a DateTimeImmutable sur DateTime ?
++ modify('+21 days') renvoie une nouvelle date sans altérer l'originale
+- Il gère automatiquement les fuseaux horaires pour tous les utilisateurs
+- Il est le seul à pouvoir additionner des jours
+- Il stocke la date directement dans la base de données
+? Même logique que PSR-7 : les objets immuables évitent les effets de bord surprenants.
+
+Q: Que retourne time() ?
++ Le nombre de secondes écoulées depuis le 1er janvier 1970 (UTC)
+- La date du jour au format « JJ/MM/AAAA »
+- Le nombre de millisecondes depuis le démarrage du serveur
+- L'heure courante au format « HH:MM:SS »
+? C'est un timestamp Unix. date('d/m/Y H:i', time()) le met en forme ; time() + 86400 désigne le même instant le lendemain.
+
+Q: Qu'affiche echo date('d/m/Y', 0); avec le fuseau horaire UTC ?
+= 01/01/1970
+? Le timestamp 0 correspond au 1er janvier 1970 à minuit UTC. d = jour sur deux chiffres, m = mois, Y = année sur quatre chiffres.
+
+Q: Comment obtenir le nombre de jours entre deux objets DateTimeImmutable $debut et $fin ?
++ $debut->diff($fin)->days
+- $fin - $debut
+- date('d', $fin) - date('d', $debut)
+- $debut->modify($fin)->days
+? diff() renvoie un DateInterval ; sa propriété days donne l'écart total en jours. Soustraire deux objets avec - provoque une erreur.
+
+Q: À quoi sert date_default_timezone_set('Europe/Paris') ?
++ À fixer le fuseau horaire utilisé par date() et les objets DateTime
+- À traduire les noms des jours et des mois en français
+- À synchroniser l'horloge du serveur avec une horloge de référence
+- À convertir les dates de la base de données en UTC
+? Sans fuseau défini (ou mal défini dans php.ini), les heures affichées peuvent être décalées. La traduction des noms relève d'IntlDateFormatter.
+
+Q: Pourquoi passer la date courante en paramètre d'une fonction qui calcule une échéance, au lieu de créer new DateTimeImmutable() à l'intérieur ?
++ Pour pouvoir la tester en fixant « aujourd'hui » à une date connue
+- Parce que PHP ne sait pas lire l'heure du serveur dans une fonction
+- Parce que la base de données impose de fournir la date du jour
+- Pour que l'horloge de l'utilisateur fasse foi dans le calcul
+? Injecter la date rend la fonction déterministe : un test vérifie l'échéance pour le 28 février sans attendre le 28 février.
+
+Q: Une date limite (échéance, expiration d'un lien) doit-elle être calculée par le navigateur ou par le serveur ?
++ Par le serveur : une valeur envoyée par le client serait falsifiable
+- Par le navigateur, qui connaît le fuseau horaire de l'utilisateur
+- Par le navigateur, pour soulager le serveur de ce calcul
+- Indifféremment : la date est identique des deux côtés
+? Tout ce qui vient du client peut être modifié. Le serveur calcule et enregistre l'échéance ; le navigateur se contente de l'afficher.
+
+Q: Que vaut (new DateTimeImmutable('2024-02-28'))->modify('+1 day')->format('d/m/Y') ?
+= 29/02/2024
+? 2024 est bissextile. Les objets de date connaissent le calendrier : mieux vaut modify() ou add(new DateInterval('P1D')) que d'ajouter 86400 secondes à la main.
+
+# 17
 
 Q: Quelle contrainte garantit qu'une adresse email n'apparaît qu'une seule fois dans la table utilisateurs ?
 + UNIQUE sur la colonne email
@@ -43,13 +159,6 @@ Q: Quel type SQL convient à une note décimale exacte comme 8,5 ? [cours]
 - VARCHAR(3)
 - SMALLINT
 ? DECIMAL stocke une valeur décimale exacte (ici 3 chiffres dont 1 après la virgule). FLOAT est une représentation approchée.
-
-Q: Pourquoi le mot de passe est-il stocké dans une colonne VARCHAR(255) sous forme de hash ?
-+ Le hash généré est long, et le mot de passe en clair ne se stocke jamais
-- Le hash est court, mais PHP exige 255 caractères au minimum
-- Le mot de passe en clair doit rester lisible pour permettre sa récupération
-- Une colonne de 255 caractères accélère toutes les connexions des utilisateurs
-? password_hash(PASSWORD_DEFAULT) produit une chaîne qui peut s'allonger quand PHP change d'algorithme : on prévoit 255 caractères.
 
 Q: Quelle jointure compte les films par genre en gardant aussi un genre sans aucun film ?
 |SELECT g.nom, COUNT(f.id) AS nb
@@ -94,19 +203,19 @@ Q: Que produit un INSERT qui viole la contrainte CHECK (note BETWEEN 0 AND 10) ?
 - Un arrondi vers la borne la plus proche, 10 par exemple
 ? Les contraintes sont la dernière défense : même si PHP laisse passer une valeur absurde, la base la refuse.
 
-Q: Pourquoi la table reservations porte-t-elle UNIQUE (utilisateur_id, seance_id) ?
-+ Pour qu'un utilisateur ne réserve qu'une fois la même séance
-- Pour qu'une séance ne reçoive qu'une seule réservation au total
-- Pour qu'un utilisateur ne réserve qu'une séance dans sa vie
-- Pour que deux utilisateurs ne réservent jamais la même séance
-? C'est la contrainte « un utilisateur ne peut réserver qu'une fois une même séance » : elle porte sur le couple, pas sur chaque colonne.
+Q: Une table inscriptions porte UNIQUE (etudiant_id, cours_id). Que garantit cette contrainte ?
++ Qu'un étudiant ne s'inscrit qu'une fois au même cours
+- Qu'un cours ne reçoit qu'une seule inscription au total
+- Qu'un étudiant ne s'inscrit qu'à un seul cours dans sa scolarité
+- Que deux étudiants ne s'inscrivent jamais au même cours
+? La contrainte porte sur le COUPLE de colonnes, pas sur chaque colonne prise séparément.
 
-Q: Qu'est-ce que la suppression logique d'un film ?
-+ Renseigner archive_le au lieu d'effacer la ligne, puis filtrer IS NULL
+Q: Qu'est-ce qu'une suppression logique (« soft delete ») ?
++ Renseigner une colonne supprime_le au lieu d'effacer la ligne, puis filtrer IS NULL
 - Effacer la ligne mais en conserver une copie dans un fichier JSON
 - Rendre la ligne invisible en modifiant les droits de l'utilisateur SQL
 - Déplacer la ligne dans une table temporaire vidée à chaque redémarrage
-? Le catalogue courant ne montre que WHERE archive_le IS NULL ; la ligne reste disponible pour l'audit et la restauration.
+? Les lectures courantes ajoutent WHERE supprime_le IS NULL ; la ligne reste disponible pour l'audit et la restauration.
 
 Q: Quelle clé primaire convient à la table favoris (utilisateur_id, film_id) ? [cours]
 + Une clé composite (utilisateur_id, film_id) qui interdit les doublons
@@ -143,7 +252,7 @@ Q: Sans clause ORDER BY, dans quel ordre le SGBD retourne-t-il les lignes ? [cou
 - Toujours par ordre alphabétique de la première colonne
 ? L'ordre doit être demandé explicitement — surtout avant LIMIT/OFFSET pour paginer.
 
-# 15
+# 18
 
 Q: Que signifie PDO ?
 + PHP Data Objects : une interface commune à plusieurs bases de données
@@ -171,7 +280,7 @@ Q: Que fait PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION ?
 - Les erreurs SQL sont masquées et la requête retourne simplement false
 - Les erreurs SQL sont affichées dans la page à titre informatif
 - Les erreurs SQL sont ignorées pour ne pas interrompre le script
-? Avec les exceptions, on ne peut pas oublier de tester un retour : l'échec devient visible et attrapable (try/catch).
+? Avec les exceptions, on ne peut pas oublier de tester un retour : l'échec devient visible et attrapable (try/catch). C'est le comportement par défaut depuis PHP 8.
 
 Q: Que fait PDO::FETCH_ASSOC comme mode par défaut ?
 + Il retourne les lignes en tableaux associatifs, sans doublons d'indices
@@ -283,7 +392,7 @@ Q: Comment corriger un problème N+1 ?
 - En remplaçant fetch() par fetchAll() à l'intérieur de la boucle
 ? SELECT f.titre, g.nom FROM films f JOIN genres g ON g.id = f.genre_id : une requête au lieu de N+1.
 
-Q: Une fiche film est demandée avec l'identifiant « abc » puis « 9999 » (inexistant). Quels statuts ?
+Q: Une fiche est demandée avec l'identifiant « abc » puis « 9999 » (inexistant). Quels statuts ?
 + 400 pour « abc » (mal formé), 404 pour 9999 (valide mais absent)
 - 404 pour « abc », 400 pour 9999 (valide mais absent)
 - 500 pour « abc », 404 pour 9999 (valide mais absent)
@@ -325,7 +434,7 @@ Q: Quelle est la différence entre une connexion SQL et une session utilisateur 
 - La connexion SQL dure tant que l'utilisateur ne se déconnecte pas
 ? Chaque requête HTTP ouvre en général une nouvelle connexion PDO ; la base, elle, conserve les données.
 
-# 16
+# 19
 
 Q: Quelles requêtes SQL correspondent respectivement à Create, Read, Update, Delete ?
 + INSERT, SELECT, UPDATE, DELETE
@@ -346,7 +455,7 @@ Q: Pourquoi ne jamais écrire $stmt->execute($_POST) ?
 - execute() n'accepte que des tableaux indexés numériquement
 - $_POST contient toujours des valeurs de type entier
 - $_POST est vidé automatiquement par PDO après l'exécution
-? On construit $filmValide à partir de champs normalisés et validés, un par un.
+? On construit un tableau de paramètres à partir de champs normalisés et validés, un par un.
 
 Q: Que retourne $pdo->lastInsertId() ?
 + L'identifiant généré par AUTO_INCREMENT lors du dernier INSERT
@@ -398,12 +507,12 @@ Q: Quelle défense arrête un genre_id falsifié envoyé dans le formulaire ?
 - Le message flash affiché après la redirection
 ? La valeur est validée contre la liste issue de la base ; si elle passe, la clé étrangère garde la dernière main.
 
-Q: Le repository de films peut-il appeler header('Location: …') ?
-+ Non : il ne fait que du SQL, la redirection relève de la page appelante
-- Oui : c'est lui qui connaît la fin de l'opération en base
+Q: Un repository (la classe qui exécute le SQL) peut-il appeler header('Location: …') ?
++ Non : il ne fait que de la persistance, la redirection relève du contrôleur
+- Oui : c'est lui qui sait quand l'opération en base est terminée
 - Oui, mais seulement après un INSERT, jamais après un UPDATE
 - Non, sauf quand il est appelé depuis une action de suppression
-? Le repository ne lit aucune superglobale, ne redirige pas et ne produit pas de HTML.
+? Le repository ne lit aucune superglobale, ne redirige pas et ne produit pas de HTML : il renvoie des données (ou null) à la couche qui l'appelle.
 
 Q: Comment détecter une modification concurrente avec une colonne de version ?
 + UPDATE … AND version = :v ; rowCount() = 0 signifie qu'un autre est passé avant
@@ -429,8 +538,6 @@ Q: Pourquoi les contraintes de la base restent-elles utiles quand PHP a déjà v
 Q: Quel code SQLSTATE signale une violation de contrainte d'intégrité avec MySQL ? [cours]
 = 23000
 ? SQLSTATE 23000 : violation d'intégrité (doublon UNIQUE, clé étrangère, NOT NULL…).
-
-# 17
 
 Q: Que signifie l'acronyme ACID ?
 + Atomicité, Cohérence, Isolation, Durabilité
@@ -530,102 +637,16 @@ Q: Que peut contenir le journal de la transaction (début, commit, rollback) ?
 - Le contenu complet de la session PHP
 ? error_log('[reservation] ROLLBACK seance=3 user=7') suffit au diagnostic.
 
-# 18
+Q: L'INSERT de la réservation réussit, mais l'UPDATE des places disponibles échoue. Quel test prouve la bonne gestion de l'incident ? [cours]
++ Après l'échec simulé, aucune réservation n'est persistée et les places sont inchangées
+- Après l'échec simulé, la réservation est conservée et les places sont corrigées plus tard
+- Après l'échec simulé, le script affiche un message mais garde l'INSERT déjà fait
+- Après l'échec simulé, seule la table des places est restaurée par le SGBD
+? La transaction regroupe les deux écritures : le rollback annule l'INSERT déjà réalisé. Le test indique l'état final des DEUX tables : c'est l'atomicité qu'on vérifie.
 
-Q: Quelle est la différence entre hachage et chiffrement des mots de passe ? [cours]
-+ Le hachage n'est pas fait pour être inversé ; le chiffrement se déchiffre avec une clé
-- Le hachage est réversible avec une clé, le chiffrement ne l'est pas
-- Les deux sont réversibles, mais le hachage est plus rapide
-- Il n'y a aucune différence : ce sont deux noms d'une même technique
-? On compare un mot de passe à son condensat (password_verify) sans jamais le retrouver.
-
-Q: Que donnent deux appels à password_hash() avec le même mot de passe ? [cours]
-+ Deux chaînes différentes, car un sel aléatoire est inclus à chaque appel
-- La même chaîne, car l'algorithme est déterministe
-- Une chaîne vide au deuxième appel, car le sel est déjà utilisé
-- Une exception signalant que le mot de passe est déjà haché
-? Le sel est géré automatiquement et inclus dans la chaîne résultante : pas besoin de le stocker à part.
-
-Q: Pourquoi password_hash plutôt que md5 ou sha1 pour stocker un mot de passe ?
-+ md5 et sha1 sont rapides à calculer : trop faciles à attaquer par force brute
-- md5 et sha1 ne produisent pas de chaîne utilisable en base
-- password_hash produit toujours des chaînes plus courtes
-- md5 et sha1 sont supprimées de PHP 8
-? password_hash utilise un algorithme adapté (lent, salé, évolutif) via PASSWORD_DEFAULT. Ne jamais inventer son propre algorithme.
-
-Q: À quoi sert password_verify() ?
-+ À comparer un mot de passe en clair avec le hash stocké
-- À recalculer le hash puis le comparer à la main avec ===
-- À déchiffrer le hash pour retrouver le mot de passe
-- À vérifier que le mot de passe respecte la politique de longueur
-? Elle extrait le sel du hash et recalcule. Ne jamais comparer manuellement.
-
-Q: Pourquoi afficher le même message pour un email inconnu et un mot de passe faux ?
-+ Pour ne pas révéler quels comptes existent (énumération de comptes)
-- Pour économiser une requête SQL lors de chaque tentative
-- Parce que PHP ne distingue pas ces deux cas
-- Pour que l'utilisateur oublie moins souvent son mot de passe
-? « Identifiant ou mot de passe incorrect. » Dire « email inconnu » aiderait un attaquant à lister les comptes valides.
-
-Q: À quoi sert password_needs_rehash() ? [cours]
-+ À détecter un hash obsolète, pour le renouveler après une connexion réussie
-- À vérifier que l'utilisateur a bien saisi son mot de passe
-- À hacher une seconde fois le mot de passe pour le renforcer
-- À migrer toute la base vers un nouvel algorithme en une fois
-? Quand PHP change d'algorithme par défaut ou de coût, on renouvelle progressivement les condensats, sans migration de masse.
-
-Q: Quelle est la différence entre les statuts 401 et 403 ?
-+ 401 : identité manquante ; 403 : identifié mais accès interdit
-- 401 : accès interdit ; 403 : identité manquante
-- 401 : ressource absente ; 403 : requête mal formée
-- 401 : erreur serveur ; 403 : erreur du navigateur
-? Authentification (qui ?) → 401. Autorisation (as-tu le droit ?) → 403. Un jeton CSRF invalide donne aussi un 403.
-
-Q: Un membre peut consulter la réservation d'un autre en changeant ?id= dans l'URL. Comment s'appelle ce défaut et quelle correction ?
-+ Accès horizontal (IDOR) : filtrer par propriétaire, WHERE id = :id AND utilisateur_id = :moi
-- Élévation de rôle : relire le rôle de l'utilisateur dans le cookie
-- Injection SQL : échapper l'identifiant avec htmlspecialchars
-- Fixation de session : régénérer l'identifiant à chaque page
-? L'identifiant seul ne suffit jamais à autoriser : on vérifie que la ressource appartient à l'utilisateur connecté.
-
-Q: Pourquoi relire le rôle en base à chaque contrôle sensible ?
-+ Modifier un cookie, l'URL ou un champ caché ne doit accorder aucun droit
-- Pour économiser de la mémoire dans la session
-- Parce que la session expire à chaque requête
-- Parce que le rôle change à chaque connexion
-? La session ne contient que l'identifiant utilisateur ; le rôle est une donnée serveur, relue depuis la base.
-
-Q: Quelle paire « menace → défense » est correcte ?
-+ Requête forgée → jeton CSRF vérifié avec hash_equals
-- Injection SQL → htmlspecialchars appliqué à la valeur
-- XSS → requête préparée utilisée dans le repository
-- Fuite de mots de passe → contrôle du jeton CSRF
-? Défense en profondeur : valider les entrées, autoriser, CSRF, requêtes préparées, échapper la sortie, hacher les secrets. Chaque mécanisme répond à une menace différente.
-
-Q: Quelle notion correspond à « le serveur vérifie la preuve : le mot de passe comparé à son condensat » ? [cours]
-+ L'authentification
-- L'identification
-- L'autorisation
-- La session
-? Identification : « je prétends être… ». Authentification : preuve. Session : mémoire. Autorisation : droits. Ne confondez jamais « connecté » et « autorisé à modifier cette ressource ».
-
-Q: Quel est l'intérêt de limiter les tentatives de connexion ?
-+ Ralentir les attaques par force brute (délai progressif, blocage temporaire)
-- Empêcher l'injection SQL dans le formulaire de connexion
-- Éviter la fixation de session après connexion
-- Chiffrer le mot de passe pendant sa saisie
-? Un compteur d'échecs par compte ou par IP, avec journalisation sans mot de passe.
-
-Q: Que penser d'une politique « 8 caractères, une majuscule, un chiffre, un symbole » ?
-+ L'argument solide est la longueur ; l'accumulation de règles arbitraires est peu utile
-- Elle est indispensable pour que password_hash fonctionne
-- Elle rend le mot de passe impossible à deviner
-- Elle remplace le hachage du mot de passe
-? Mieux vaut exiger une longueur suffisante (par exemple 12 caractères au moins) et une confirmation identique, avec une politique argumentée plutôt qu'une pile de règles.
-
-Q: Que ne faut-il jamais écrire dans un journal ?
-+ Un mot de passe, même dans un message d'erreur
-- L'identifiant technique de l'utilisateur
-- L'heure de la tentative de connexion
-- Le code de statut renvoyé
-? Journaliser les anomalies (horodatage, identifiant technique), jamais le mot de passe ni le jeton.
+Q: Quel résultat observable vérifier après une réservation demandée sur une séance qui n'a plus aucune place ? [cours]
++ Un refus explicite, aucune réservation insérée et places_disponibles toujours à 0
+- Un succès 201, puis une correction manuelle des places par un administrateur
+- Un refus affiché, mais une réservation créée avec le statut « en attente »
+- Un succès partiel : la réservation existe et places_disponibles devient -1
+? Un test précise un état initial (0 place), une action et un résultat observable : refus (422, ou 409 selon la convention), aucune ligne insérée, compteur inchangé. C'est l'invariant métier qu'on vérifie.

@@ -1,7 +1,7 @@
-// Banque de questions — chapitre 27 : JavaScript, les fondamentaux
-// Questions inspirées du cours « JavaScript Vanilla — Les fondamentaux » (T. Ferut, CC BY-SA 4.0).
+// Banque de questions — chapitre 24 : JavaScript, les fondamentaux
+// Questions inspirées du cours « JavaScript Vanilla — Les fondamentaux » (T. Ferut, CC BY-SA 4.0), complétées.
 
-# 27
+# 24
 
 Q: Dans une page Web interactive, quel est le rôle de JavaScript par rapport à HTML et CSS ? [cours]
 + Il programme le comportement : calculs, décisions, réactions aux actions
@@ -87,12 +87,12 @@ Q: Un script s'exécute sans erreur mais affiche un mauvais résultat. De quel t
 - Une erreur de chargement : le fichier .js est introuvable
 ? Syntaxe : le code est illisible. Exécution : une exception se produit. Logique : tout s'exécute mais le résultat est faux. Les messages rouges de la console aident pour les deux premières.
 
-Q: Quelle démarche le cours recommande-t-il devant une erreur affichée dans la console ? [cours]
+Q: Quelle démarche adopter devant une erreur affichée dans la console ? [cours]
 + Lire le message et la ligne, isoler le défaut, corriger, puis refaire le test
 - Effacer la console et recharger la page jusqu'à ce que l'erreur disparaisse
 - Ignorer les messages rouges tant que la page s'affiche correctement
 - Commenter tout le script puis réactiver les lignes dans un ordre aléatoire
-? Les messages rouges de l'onglet Console indiquent souvent où chercher : fichier, ligne, nature de l'erreur.
+? Les messages rouges de l'onglet Console indiquent souvent où chercher : fichier, ligne, nature de l'erreur. On corrige une seule chose à la fois, puis on reteste.
 
 Q: Que se passe-t-il à l'exécution de ces deux lignes ? [cours]
 |const prenom = "Lina";
@@ -176,7 +176,7 @@ Q: Que valent "5" === 5 puis "5" == 5 ? [cours]
 - true puis true : les deux opérateurs convertissent d'abord les types
 - false puis false : un texte n'est jamais égal à un nombre en JavaScript
 - true puis false : === convertit les types, alors que == les compare aussi
-? === ne fait aucune conversion implicite ; == en fait, parfois de façon trompeuse. Dans les exercices : préférer === et !==, et convertir les nombres en amont.
+? === ne fait aucune conversion implicite ; == en fait, parfois de façon trompeuse. Règle pratique : préférer === et !==, et convertir les nombres en amont.
 
 Q: Quelle différence y a-t-il entre = et === ? [cours]
 + = affecte une valeur à une variable ; === compare valeur et type sans conversion
@@ -218,7 +218,7 @@ Q: Que renvoie confirm("Continuer ?") ? [cours]
 - La chaîne "ok" ou la chaîne "annuler"
 - Le texte saisi, ou null en cas d'annulation
 - Toujours undefined, comme alert()
-? confirm() renvoie un booléen. Ces boîtes de dialogue servent aux premiers exercices, pas à concevoir une interface finale.
+? confirm() renvoie un booléen. Ces boîtes de dialogue servent aux premiers essais, pas à concevoir une interface finale.
 
 Q: Que vaut brutA + brutB si prompt() a renvoyé "2" puis "3" ? [cours]
 |const brutA = prompt("Premier nombre ?");
@@ -355,13 +355,6 @@ Q: Quelle comparaison switch utilise-t-il pour choisir un case ? [cours]
 - L'ordre alphabétique des valeurs
 - La comparaison des références d'objets
 ? case compare à l'aide d'une égalité stricte : "1" ne correspond pas à 1. Avec prompt(), qui renvoie du texte, on écrit donc case "1".
-
-Q: Quelle approche donne correctement le signe de a * b, notamment pour a = -3 et b = -2 ? [cours]
-+ Calculer produit = a * b, puis tester produit > 0, produit < 0, sinon nul
-- Tester seulement a < 0 || b < 0 : un nombre négatif rend le produit négatif
-- Tester a > 0 && b > 0, sinon conclure que le produit est négatif
-- Comparer a et b : le plus petit des deux fixe le signe du produit
-? Deux négatifs donnent un produit positif (+6) et un facteur nul donne un produit nul : les cas pièges sont « deux négatifs » et zéro.
 
 Q: Quand la condition d'une boucle while est-elle contrôlée ? [cours]
 + Avant chaque tour, y compris le premier
@@ -510,16 +503,37 @@ Q: Quelle séquence valide un entier strictement positif saisi avec prompt() ? [
 - Tester isNaN(saisie), puis calculer directement avec la chaîne sans la convertir
 ? Ordre : présence de la saisie, conversion explicite, puis validité (entier ET strictement positif). typeof saisie vaut toujours "string" après prompt().
 
-Q: Quelle est la première étape de la méthode de résolution d'un exercice ? [cours]
-+ Décrire les entrées : quelles valeurs, quel format, et ce que signifie Annuler
-- Écrire tout le code, puis corriger les erreurs affichées par la console
-- Choisir la boucle la plus rapide pour le traitement des données
-- Rédiger les jeux d'essai une fois le programme entièrement terminé
-? Méthode en cinq temps : décrire les entrées, écrire les règles, découper le traitement, prévoir les sorties, tester et corriger. On produit d'abord un programme juste, puis on le simplifie sans perdre les contrôles.
-
 Q: Quels jeux d'essai permettent de démontrer qu'un programme est correct ? [cours]
 + Un cas nominal, un cas limite et une entrée incorrecte
 - Un seul cas nominal, répété avec plusieurs valeurs voisines
 - Uniquement les cas où l'utilisateur clique sur Annuler
 - Les cas où le script plante, pas les cas qui fonctionnent
 ? Tester un cas nominal, une limite (0, négatif, borne) et une entrée incorrecte (texte, vide, Annuler). Un résultat incohérent n'est pas forcément une erreur de syntaxe : on vérifie les types et les valeurs.
+
+Q: Que renvoie typeof null en JavaScript ?
++ "object" : une erreur historique du langage, conservée pour la compatibilité
+- "null" : chaque valeur primitive a son propre nom de type
+- "undefined" : null et undefined sont deux écritures de la même valeur
+- Une TypeError : on ne peut pas demander le type de null
+? Pour tester null, on compare directement : valeur === null. typeof sert pour "number", "string", "boolean", "undefined" et "function".
+
+Q: Que valent 0 ?? 5 puis 0 || 5 en JavaScript ?
++ 0 puis 5 : ?? ne remplace que null et undefined, || remplace toute valeur falsy
+- 5 puis 5 : les deux opérateurs remplacent la valeur 0
+- 0 puis 0 : les deux opérateurs conservent la valeur 0
+- 5 puis 0 : ?? teste la falsyté, || seulement null et undefined
+? Pour une valeur par défaut qui doit accepter 0 ou "" (quantité, texte vide), on utilise ??. Même logique qu'en PHP.
+
+Q: Que vaut 0.1 + 0.2 === 0.3 en JavaScript ?
++ false : 0.1 + 0.2 vaut 0.30000000000000004
+- true : JavaScript arrondit automatiquement les décimales
+- undefined : la comparaison de décimaux n'est pas définie
+- Une erreur : === ne compare pas des nombres décimaux
+? Comme en PHP, les nombres sont stockés en binaire (norme IEEE 754). Pour des montants, on calcule en centimes entiers ; pour comparer, on tolère un petit écart (Math.abs(a - b) < 1e-9).
+
+Q: Que fait le mode strict ("use strict") ?
++ Il transforme certaines erreurs silencieuses en exceptions, comme l'affectation à une variable non déclarée
+- Il impose de déclarer le type de chaque variable avec let ou const
+- Il interdit l'utilisation de var et de function dans tout le script
+- Il compile le script en code machine avant son exécution
+? Sans mode strict, total = 5 sans déclaration crée une variable globale par accident. Les modules (type="module") et les classes sont en mode strict automatiquement.

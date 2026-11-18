@@ -14,6 +14,7 @@ require __DIR__ . '/http.php';
 require __DIR__ . '/vues.php';
 require __DIR__ . '/partie.php';
 require __DIR__ . '/stats.php';
+require __DIR__ . '/fiches.php';
 require __DIR__ . '/pages.php';
 
 date_default_timezone_set('Europe/Paris');

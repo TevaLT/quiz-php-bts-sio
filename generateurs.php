@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 /**
- * Générateurs de questions : chaque appel fabrique une question avec des valeurs NEUVES
- * (calculées par PHP lui-même, donc toujours exactes).
+ * Générateurs de questions : chaque appel fabrique une question avec des valeurs NEUVES.
+ * La réponse est calculée par PHP lui-même, en exécutant la même opération : elle est toujours exacte.
  *
  * Format : 'nom' => [chapitre, fonction]. Les fonctions creerQcm() / creerSaisie() / alea() / tirer() /
- * melanger() viennent de quiz.php. Une ligne qui commence par « | » est affichée comme du code.
+ * melanger() viennent de moteur.php. Une ligne qui commence par « | » est affichée comme du code.
  */
 
 /** @param list<int|string> $t */
@@ -44,9 +44,22 @@ function listeJs(array $t): string
     return '[' . implode(', ', array_map('litteralJs', $t)) . ']';
 }
 
+/** Ce qu'afficherait var_dump() pour une valeur scalaire, sur une ligne (indépendant d'éventuelles extensions de débogage). */
+function texteVarDump(mixed $v): string
+{
+    return match (true) {
+        $v === null => 'NULL',
+        is_bool($v) => 'bool(' . ($v ? 'true' : 'false') . ')',
+        is_int($v) => 'int(' . $v . ')',
+        is_float($v) => 'float(' . (floor($v) === $v && abs($v) < 1e15 ? (string) (int) $v : (string) $v) . ')',
+        is_string($v) => 'string(' . strlen($v) . ') "' . $v . '"',
+        default => get_debug_type($v),
+    };
+}
+
 return [
 
-    // ───────── 01 · Variables, types, calculs ─────────
+    // ───────── 01 · Variables, types et opérateurs ─────────
     'modulo' => ['01', static function (): array {
         $a = alea(11, 99);
         $b = alea(3, 9);
@@ -63,24 +76,12 @@ return [
             sprintf('intdiv() renvoie le quotient entier : %d / %d = %.2f, partie entière %d.', $a, $b, $a / $b, intdiv($a, $b)));
     }],
 
-    'duree' => ['01', static function (): array {
-        $m = alea(61, 239);
-        $h = intdiv($m, 60);
-        $r = $m % 60;
-        $bonne = sprintf('%d h %02d min', $h, $r);
-        $candidats = [
-            sprintf('%d h %d min', $h, $r),
-            sprintf('%d h %02d min', $h + 1, $r),
-            sprintf('%d h %02d min', $h, 60 - $r),
-            sprintf('%d h %02d min', $r, $h),
-            sprintf('%d h %02d min', intdiv($m, 100), $m % 100),
-            sprintf('%d h %02d min', $h, $m % 100),
-        ];
-        $candidats = array_values(array_unique(array_filter($candidats, static fn (string $c): bool => $c !== $bonne)));
-        $mauvaises = array_slice(melanger($candidats), 0, 3);
+    'conversion' => ['01', static function (): array {
+        $m = alea(61, 599);
+        $attendu = intdiv($m, 60) . ' h ' . sprintf('%02d', $m % 60);
 
-        return creerQcm('', ['`convertirDuree` retourne « H h MM min » (minutes sur deux chiffres). Pour cet appel :', "|convertirDuree($m);"], $bonne, $mauvaises,
-            sprintf('%d min = %d h et %d min (intdiv et modulo 60) ; sprintf(\'%%02d\') force deux chiffres.', $m, $h, $r));
+        return creerSaisie('', ['Qu\'affiche ce code ?', "|\$minutes = $m;", "|echo intdiv(\$minutes, 60) . ' h ' . sprintf('%02d', \$minutes % 60);"], $attendu,
+            sprintf('intdiv(%d, 60) = %d heure(s) ; %d %% 60 = %d minute(s), que %%02d écrit sur deux chiffres : « %s ».', $m, intdiv($m, 60), $m, $m % 60, $attendu), false, 'format : 1 h 05');
     }],
 
     'sprintf' => ['01', static function (): array {
@@ -136,49 +137,10 @@ return [
         [$modele, $valeur, $why] = tirer($modeles);
         $affiche = strtr($modele, ['$a' => (string) $a, '$b' => (string) $b, '$c' => (string) $c]);
 
-        return creerSaisie('', ['Que affiche ce code ?', "|echo $affiche;"], (string) $valeur, $why);
+        return creerSaisie('', ['Qu\'affiche ce code ?', "|echo $affiche;"], (string) $valeur, $why);
     }],
 
-    // ───────── 02 · Conditions et logique ─────────
-    'bissextile' => ['02', static function (): array {
-        $categorie = alea(0, 3);
-        $annee = match ($categorie) {
-            0 => tirer([1600, 2000, 2400]),
-            1 => tirer([1700, 1800, 1900, 2100, 2200, 2300]),
-            2 => 4 * alea(451, 590),
-            default => 4 * alea(451, 590) + alea(1, 3),
-        };
-        if ($categorie === 2 && $annee % 100 === 0) {
-            $annee += 4;
-        }
-        $bissextile = ($annee % 4 === 0 && $annee % 100 !== 0) || $annee % 400 === 0;
-        $why = match (true) {
-            $annee % 400 === 0 => "$annee est divisible par 400 : bissextile.",
-            $annee % 100 === 0 => "$annee est divisible par 100 mais pas par 400 : pas bissextile.",
-            $annee % 4 === 0 => "$annee est divisible par 4 mais pas par 100 : bissextile.",
-            default => "$annee n'est pas divisible par 4 : pas bissextile.",
-        };
-        $oui = 'Oui, bissextile';
-        $non = 'Non, pas bissextile';
-
-        return creerQcm('', "Selon le calendrier grégorien, l'année $annee est-elle bissextile ?", $bissextile ? $oui : $non, [$bissextile ? $non : $oui], $why);
-    }],
-
-    'tarif' => ['02', static function (): array {
-        $age = tirer([5, 12, 17, 18, 25, 40, 64, 65, 70, 82]);
-        $membre = alea(0, 1) === 1;
-        $prix = $age < 18 ? 6 : ($age >= 65 ? 7 : 9);
-        if ($membre) {
-            $prix -= 2;
-        }
-        $prix = max(0, $prix);
-
-        return creerSaisie('', [
-            'Règles : plein tarif 9 € ; moins de 18 ans 6 € ; 65 ans et plus 7 € ; un membre a ensuite 2 € de réduction ; jamais négatif.',
-            sprintf('Quel est le prix (en €) pour une personne de %d ans, %s ?', $age, $membre ? 'membre' : 'non membre'),
-        ], (string) $prix, sprintf('Tarif de base %d €%s.', $age < 18 ? 6 : ($age >= 65 ? 7 : 9), $membre ? ', moins 2 € pour un membre' : ''));
-    }],
-
+    // ───────── 02 · Conditions et comparaisons ─────────
     'comparaisons' => ['02', static function (): array {
         $cas = [
             ['0 == "a"', static fn (): bool => 0 == 'a', 'Depuis PHP 8, un entier est comparé à une chaîne non numérique en tant que chaîne : "0" == "a" est faux.'],
@@ -208,37 +170,65 @@ return [
         return creerQcm('', ['Que produit ce code avec PHP 8 ?', "|var_dump($expr);"], $valeur ? $vrai : $faux, [$valeur ? $faux : $vrai], $why);
     }],
 
+    'coalesce' => ['02', static function (): array {
+        $t = ['a' => 1, 'b' => null, 'c' => 0];
+        $cas = [
+            ['$t[\'a\'] ?? \'défaut\'', $t['a'] ?? 'défaut', 'La clé existe et vaut 1 (non null).'],
+            ['$t[\'b\'] ?? \'défaut\'', $t['b'] ?? 'défaut', '?? renvoie la valeur de droite si la clé est absente OU si la valeur est null.'],
+            ['$t[\'z\'] ?? \'défaut\'', $t['z'] ?? 'défaut', 'Clé absente : pas d\'avertissement, valeur par défaut.'],
+            ['$t[\'c\'] ?? \'défaut\'', $t['c'] ?? 'défaut', '?? ne teste que null/absent : 0 est conservé (contrairement à ?:).'],
+            ['isset($t[\'b\'])', isset($t['b']), 'isset est faux pour une valeur null.'],
+            ['isset($t[\'c\'])', isset($t['c']), 'La clé existe et sa valeur (0) n\'est pas null.'],
+            ['array_key_exists(\'b\', $t)', array_key_exists('b', $t), 'array_key_exists teste l\'existence de la clé, même si la valeur est null.'],
+            ['empty($t[\'c\'])', empty($t['c']), 'empty est vrai pour 0.'],
+            ['empty($t[\'z\'])', empty($t['z']), 'empty est vrai pour une clé absente, sans avertissement.'],
+        ];
+        [$expr, $valeur, $why] = tirer($cas);
+        $rep = is_bool($valeur) ? ($valeur ? 'true' : 'false') : (string) $valeur;
+
+        return creerSaisie('', [
+            'Avec ce tableau, que donne l\'expression ? (true, false, un nombre ou un texte)',
+            '|$t = [\'a\' => 1, \'b\' => null, \'c\' => 0];',
+            "|var_dump($expr);   // réponse = la valeur obtenue",
+        ], $rep, $why);
+    }],
+
+    'logique' => ['02', static function (): array {
+        $a = alea(0, 1) === 1;
+        $b = alea(0, 1) === 1;
+        $c = alea(0, 1) === 1;
+        $modeles = [
+            ['$a || $b && $c', static fn (bool $a, bool $b, bool $c): bool => $a || $b && $c, '&& est prioritaire sur || : on calcule d\'abord $b && $c, puis le ||.'],
+            ['$a && $b || $c', static fn (bool $a, bool $b, bool $c): bool => $a && $b || $c, '&& est prioritaire sur || : l\'expression vaut ($a && $b) || $c.'],
+            ['!$a && $b', static fn (bool $a, bool $b, bool $c): bool => !$a && $b, '! ne s\'applique qu\'à $a : l\'expression vaut (!$a) && $b.'],
+            ['!($a && $b)', static fn (bool $a, bool $b, bool $c): bool => !($a && $b), 'Les parenthèses calculent d\'abord $a && $b, puis ! inverse le résultat.'],
+            ['!$a || !$b', static fn (bool $a, bool $b, bool $c): bool => !$a || !$b, 'Loi de De Morgan : !$a || !$b équivaut à !($a && $b).'],
+            ['$a xor $b', static fn (bool $a, bool $b, bool $c): bool => $a xor $b, 'xor (ou exclusif) est vrai quand exactement un des deux opérandes est vrai.'],
+            ['($a || $b) && !$c', static fn (bool $a, bool $b, bool $c): bool => ($a || $b) && !$c, 'Les parenthèses d\'abord ($a || $b), puis !$c, puis le &&.'],
+        ];
+        [$expr, $fn, $why] = tirer($modeles);
+        $valeur = $fn($a, $b, $c);
+        $litteral = static fn (bool $x): string => $x ? 'true' : 'false';
+
+        return creerQcm('', ['Que produit ce code ?', '|$a = ' . $litteral($a) . ';', '|$b = ' . $litteral($b) . ';', '|$c = ' . $litteral($c) . ';', "|var_dump($expr);"],
+            $valeur ? 'bool(true)' : 'bool(false)', [$valeur ? 'bool(false)' : 'bool(true)'], $why);
+    }],
+
+    'match_valeur' => ['02', static function (): array {
+        $note = alea(0, 20);
+        $mention = match (true) {
+            $note >= 16 => 'Très bien',
+            $note >= 14 => 'Bien',
+            $note >= 10 => 'Passable',
+            default => 'Insuffisant',
+        };
+        $autres = array_values(array_diff(['Très bien', 'Bien', 'Passable', 'Insuffisant'], [$mention]));
+
+        return creerQcm('', ['Qu\'affiche ce code ?', "|\$note = $note;", '|echo match (true) {', "|    \$note >= 16 => 'Très bien',", "|    \$note >= 14 => 'Bien',", "|    \$note >= 10 => 'Passable',", "|    default => 'Insuffisant',", '|};'],
+            $mention, $autres, "match (true) renvoie la valeur du PREMIER bras dont la condition vaut true : les seuils sont rangés du plus exigeant au plus large. Pour $note : $mention.");
+    }],
+
     // ───────── 03 · Boucles ─────────
-    'fizzbuzz' => ['03', static function (): array {
-        $n = alea(1, 150);
-        $rep = $n % 15 === 0 ? 'FizzBuzz' : ($n % 3 === 0 ? 'Fizz' : ($n % 5 === 0 ? 'Buzz' : (string) $n));
-        $options = array_values(array_unique(['Fizz', 'Buzz', 'FizzBuzz', (string) $n]));
-        $mauvaises = array_values(array_filter($options, static fn (string $o): bool => $o !== $rep));
-
-        return creerQcm('', "Dans le FizzBuzz classique (Fizz = multiple de 3, Buzz = multiple de 5, FizzBuzz = les deux), que s'affiche-t-il pour $n ?", $rep, $mauvaises,
-            "$n % 3 = " . ($n % 3) . ' et ' . "$n % 5 = " . ($n % 5) . '.');
-    }],
-
-    'collatz' => ['03', static function (): array {
-        if (alea(0, 1) === 0) {
-            $x = alea(3, 99);
-            $suivant = $x % 2 === 0 ? intdiv($x, 2) : 3 * $x + 1;
-
-            return creerSaisie('', "Dans la suite de Collatz (pair : divisé par 2 ; impair : ×3 puis +1), quel est le terme qui suit $x ?", (string) $suivant,
-                $x % 2 === 0 ? "$x est pair : $x / 2 = $suivant." : "$x est impair : 3 × $x + 1 = $suivant.");
-        }
-        $n = alea(3, 30);
-        $terme = $n;
-        $taille = 1;
-        while ($terme !== 1) {
-            $terme = $terme % 2 === 0 ? intdiv($terme, 2) : 3 * $terme + 1;
-            $taille++;
-        }
-
-        return creerSaisie('', "Combien de valeurs (départ et 1 compris) retourne `suiteCollatz($n)` ?", (string) $taille,
-            "La suite part de $n et atteint 1 après " . ($taille - 1) . " étapes, soit $taille valeurs.");
-    }],
-
     'iterations' => ['03', static function (): array {
         $debut = alea(0, 5);
         $pas = tirer([1, 2, 3, 5]);
@@ -257,7 +247,29 @@ return [
         ], (string) $c, sprintf('$i prend les valeurs %d, %d, %d… tant que $i %s %d : %d tours.', $debut, $debut + $pas, $debut + 2 * $pas, $op, $fin, $c));
     }],
 
-    // ───────── 04 · Tableaux et textes ─────────
+    'boucle_controle' => ['03', static function (): array {
+        $n = alea(6, 9);
+        $k = alea(2, 4);
+        $m = alea(3, $n - 1);
+        $sortie = '';
+        for ($i = 1; $i <= $n; $i++) {
+            if ($i % $k === 0) {
+                continue;
+            }
+            if ($i > $m) {
+                break;
+            }
+            $sortie .= $i;
+        }
+        $testContinue = ["|    if (\$i % $k === 0) {", '|        continue;', '|    }'];
+        $testBreak = ["|    if (\$i > $m) {", '|        break;', '|    }'];
+        $corps = alea(0, 1) === 1 ? array_merge($testContinue, $testBreak) : array_merge($testBreak, $testContinue);
+
+        return creerSaisie('', array_merge(['Qu\'affiche ce code ?', "|for (\$i = 1; \$i <= $n; \$i++) {"], $corps, ['|    echo $i;', '|}']), $sortie,
+            "continue saute la fin du tour : les multiples de $k ne sont pas affichés. break quitte la boucle dès que \$i dépasse $m. Résultat : $sortie.");
+    }],
+
+    // ───────── 04 · Tableaux ─────────
     'tableaux' => ['04', static function (): array {
         $t = [];
         while (count($t) < 5) {
@@ -309,7 +321,60 @@ return [
             'À connaître : count, array_sum, max, min, array_slice(tableau, début, longueur), array_reverse, array_unique (+ array_values pour réindexer).', false, $indice);
     }],
 
-    'chaines' => ['04', static function (): array {
+    'tableaux_fonctions' => ['04', static function (): array {
+        $t = [];
+        while (count($t) < 4) {
+            $v = alea(1, 9);
+            if (!in_array($v, $t, true)) {
+                $t[] = $v;
+            }
+        }
+        $liste = listePhp($t);
+        $k = alea(2, 7);
+        $indice = '';
+        switch (alea(1, 6)) {
+            case 1:
+                $code = "count(array_filter($liste, fn(\$x) => \$x > $k))";
+                $rep = [(string) count(array_filter($t, static fn (int $x): bool => $x > $k))];
+                $why = "array_filter garde les éléments pour lesquels la fonction renvoie true (ici ceux > $k) ; count les compte.";
+                break;
+            case 2:
+                $k = alea(2, 5);
+                $code = "array_map(fn(\$x) => \$x * $k, $liste)";
+                $rep = variantesListe(array_map(static fn (int $x): int => $x * $k, $t));
+                $why = 'array_map applique la fonction à chaque élément et renvoie un nouveau tableau, dans le même ordre.';
+                $indice = 'format : [1, 2, 3, 4]';
+                break;
+            case 3:
+                $cherche = tirer($t);
+                $code = "array_search($cherche, $liste)";
+                $rep = [(string) array_search($cherche, $t, true)];
+                $why = 'array_search renvoie la CLÉ de la première occurrence ; la première clé d\'une liste vaut 0.';
+                break;
+            case 4:
+                $code = "array_sum(array_slice($liste, 1, 2))";
+                $rep = [(string) array_sum(array_slice($t, 1, 2))];
+                $why = 'array_slice($t, 1, 2) prend 2 éléments à partir de l\'indice 1 ; array_sum les additionne.';
+                break;
+            case 5:
+                $code = "implode('-', array_reverse($liste))";
+                $rep = [implode('-', array_reverse($t))];
+                $why = 'array_reverse inverse l\'ordre ; implode colle les éléments avec le séparateur.';
+                $indice = 'format : 1-2-3-4';
+                break;
+            default:
+                $code = "array_keys(['a' => {$t[0]}, 'b' => {$t[1]}, 'c' => {$t[0]}], {$t[0]})";
+                $cles = array_keys(['a' => $t[0], 'b' => $t[1], 'c' => $t[0]], $t[0]);
+                $rep = array_merge(variantesListe($cles), [listePhp($cles), '["' . implode('", "', $cles) . '"]']);
+                $why = 'Avec un second argument, array_keys ne renvoie que les clés dont la valeur est égale à celle cherchée.';
+                $indice = "format : ['a', 'b']";
+        }
+
+        return creerSaisie('', ['Que retourne cette expression ?', "|$code"], $rep, $why, false, $indice);
+    }],
+
+    // ───────── 05 · Chaînes de caractères ─────────
+    'chaines' => ['05', static function (): array {
         $mot = tirer(['été', 'café', 'garçon', 'élève', 'forêt', 'cœur', 'Noël', 'île']);
         $variante = alea(1, 5);
         switch ($variante) {
@@ -344,62 +409,59 @@ return [
         return creerSaisie('', ['Que retourne cet appel ?', "|echo $code;"], $rep, $why);
     }],
 
-    // ───────── 05 · Algorithmes classiques ─────────
-    'fibonacci' => ['05', static function (): array {
-        $n = alea(7, 22);
-        [$a, $b] = [0, 1];
-        for ($i = 0; $i < $n; $i++) {
-            [$a, $b] = [$b, $a + $b];
-        }
-
-        return creerSaisie('', "Avec F(0) = 0 et F(1) = 1, que vaut F($n) dans la suite de Fibonacci ?", (string) $a,
-            "Chaque terme est la somme des deux précédents : F($n) = $a.");
-    }],
-
-    'premier' => ['05', static function (): array {
-        $n = alea(20, 250);
-        $diviseur = null;
-        for ($d = 2; $d * $d <= $n; $d++) {
-            if ($n % $d === 0) {
-                $diviseur = $d;
+    'chaines_fonctions' => ['05', static function (): array {
+        $mot = tirer(['bonjour', 'tableau', 'variable', 'fonction', 'boucle', 'serveur', 'session', 'requete']);
+        switch (alea(1, 6)) {
+            case 1:
+                $debut = alea(0, 2);
+                $longueur = alea(2, 4);
+                $code = "substr('$mot', $debut, $longueur)";
+                $rep = substr($mot, $debut, $longueur);
+                $why = 'substr(chaîne, début, longueur) : le premier caractère est à la position 0.';
                 break;
-            }
+            case 2:
+                $code = "strrev('$mot')";
+                $rep = strrev($mot);
+                $why = 'strrev inverse la chaîne, octet par octet (à éviter sur du texte accentué).';
+                break;
+            case 3:
+                $n = alea(1, 99);
+                $longueur = alea(4, 6);
+                $code = "str_pad('$n', $longueur, '0', STR_PAD_LEFT)";
+                $rep = str_pad((string) $n, $longueur, '0', STR_PAD_LEFT);
+                $why = 'str_pad complète la chaîne à gauche (STR_PAD_LEFT) jusqu\'à la longueur demandée.';
+                break;
+            case 4:
+                $lettre = tirer(str_split($mot));
+                $code = "substr_count('$mot', '$lettre')";
+                $rep = (string) substr_count($mot, $lettre);
+                $why = 'substr_count compte les occurrences de la sous-chaîne.';
+                break;
+            case 5:
+                $lettre = $mot[alea(1, strlen($mot) - 1)];
+                $code = "strpos('$mot', '$lettre')";
+                $rep = (string) strpos($mot, $lettre);
+                $why = 'strpos renvoie la position de la PREMIÈRE occurrence, en comptant à partir de 0 (ou false si elle est absente).';
+                break;
+            default:
+                $code = "strlen(trim('  $mot  '))";
+                $rep = (string) strlen($mot);
+                $why = 'trim retire les espaces du début et de la fin ; strlen compte ensuite les octets (une lettre sans accent = un octet).';
         }
-        $premier = $diviseur === null;
-        $oui = 'Oui, c\'est un nombre premier';
-        $non = 'Non, il est composé';
 
-        return creerQcm('', "Le nombre $n est-il premier ?", $premier ? $oui : $non, [$premier ? $non : $oui],
-            $premier ? "Aucun diviseur entre 2 et √$n (≈ " . round(sqrt($n), 1) . ') : il est premier.' : "$n est divisible par $diviseur ($n = $diviseur × " . intdiv($n, $diviseur) . ').');
+        return creerSaisie('', ['Que retourne cet appel ?', "|echo $code;"], $rep, $why);
     }],
 
-    // ───────── 06 · Fonctions, contrats, tests ─────────
-    'isbn' => ['06', static function (): array {
-        $chiffres = '';
-        for ($i = 0; $i < 9; $i++) {
-            $chiffres .= (string) alea(0, 9);
-        }
-        $somme = 0;
-        for ($i = 0; $i < 9; $i++) {
-            $somme += (int) $chiffres[$i] * (10 - $i);
-        }
-        $cle = (11 - ($somme % 11)) % 11;
-        $rep = $cle === 10 ? 'X' : (string) $cle;
-        $format = substr($chiffres, 0, 1) . '-' . substr($chiffres, 1, 3) . '-' . substr($chiffres, 4);
+    // ───────── 06 · Fonctions et récursivité ─────────
+    'factorielle' => ['06', static function (): array {
+        $n = alea(3, 8);
+        $resultat = array_product(range(1, $n));
 
-        return creerSaisie('', ["Clé ISBN-10 : poids 10 à 2 sur les neuf chiffres, clé = (11 - (somme % 11)) % 11, « X » si 10.", "|calculerCleIsbn10('$format');"], $rep,
-            "Somme pondérée = $somme ; $somme % 11 = " . ($somme % 11) . " ; clé = (11 - " . ($somme % 11) . ') % 11 = ' . $cle . ($cle === 10 ? ' → « X »' : '') . '.', false, 'un chiffre ou X');
+        return creerSaisie('', ['Qu\'affiche ce code ?', '|function f(int $n): int {', '|    return $n <= 1 ? 1 : $n * f($n - 1);', '|}', "|echo f($n);"], (string) $resultat,
+            "f calcule une factorielle : f($n) = " . implode(' × ', range($n, 1)) . " = $resultat. Le cas de base (\$n <= 1) arrête la récursion.");
     }],
 
-    // ───────── 07 · Récursivité ─────────
-    'factorielle' => ['07', static function (): array {
-        $n = alea(3, 9);
-
-        return creerSaisie('', "Que retourne `factorielleRecursive($n)` ?", (string) array_product(range(1, $n)),
-            "$n! = " . implode(' × ', range($n, 1)) . ' = ' . array_product(range(1, $n)) . '.');
-    }],
-
-    'fib_appels' => ['07', static function (): array {
+    'fib_appels' => ['06', static function (): array {
         $n = alea(3, 10);
         $appels = static function (int $k) use (&$appels): int {
             return $k < 2 ? 1 : 1 + $appels($k - 1) + $appels($k - 2);
@@ -414,40 +476,174 @@ return [
         ], (string) $nb, "calls(n) = 1 + calls(n-1) + calls(n-2), avec calls(0) = calls(1) = 1 : $nb appels. Les sous-problèmes sont recalculés → croissance exponentielle.");
     }],
 
-    'somme_chiffres' => ['07', static function (): array {
+    'somme_chiffres' => ['06', static function (): array {
         $n = alea(100, 99999);
         $chiffres = str_split((string) $n);
 
-        return creerSaisie('', "Que retourne la somme récursive des chiffres de $n ?", (string) array_sum($chiffres),
-            implode(' + ', $chiffres) . ' = ' . array_sum($chiffres) . ' (dernier chiffre : $n % 10 ; reste : intdiv($n, 10)).');
+        return creerSaisie('', ['Qu\'affiche ce code ?', '|function s(int $n): int {', '|    return $n < 10 ? $n : $n % 10 + s(intdiv($n, 10));', '|}', "|echo s($n);"], (string) array_sum($chiffres),
+            'Chaque appel garde le dernier chiffre ($n % 10) et rappelle s() sur le reste (intdiv($n, 10)) : ' . implode(' + ', $chiffres) . ' = ' . array_sum($chiffres) . '.');
     }],
 
-    // ───────── 09 · HTTP et superglobales ─────────
-    'coalesce' => ['09', static function (): array {
-        $t = ['a' => 1, 'b' => null, 'c' => 0];
-        $cas = [
-            ['$t[\'a\'] ?? \'défaut\'', $t['a'] ?? 'défaut', 'La clé existe et vaut 1 (non null).'],
-            ['$t[\'b\'] ?? \'défaut\'', $t['b'] ?? 'défaut', '?? renvoie la valeur de droite si la clé est absente OU si la valeur est null.'],
-            ['$t[\'z\'] ?? \'défaut\'', $t['z'] ?? 'défaut', 'Clé absente : pas d\'avertissement, valeur par défaut.'],
-            ['$t[\'c\'] ?? \'défaut\'', $t['c'] ?? 'défaut', '?? ne teste que null/absent : 0 est conservé (contrairement à ?:).'],
-            ['isset($t[\'b\'])', isset($t['b']), 'isset est faux pour une valeur null.'],
-            ['isset($t[\'c\'])', isset($t['c']), 'La clé existe et sa valeur (0) n\'est pas null.'],
-            ['array_key_exists(\'b\', $t)', array_key_exists('b', $t), 'array_key_exists teste l\'existence de la clé, même si la valeur est null.'],
-            ['empty($t[\'c\'])', empty($t['c']), 'empty est vrai pour 0.'],
-            ['empty($t[\'z\'])', empty($t['z']), 'empty est vrai pour une clé absente, sans avertissement.'],
-        ];
-        [$expr, $valeur, $why] = tirer($cas);
-        $rep = is_bool($valeur) ? ($valeur ? 'true' : 'false') : (string) $valeur;
+    // ───────── 07 · Erreurs et exceptions ─────────
+    'exceptions_flux' => ['07', static function (): array {
+        $x = alea(-9, 9);
+        if ($x === 0) {
+            $x = 4;
+        }
+        $classe = tirer(['InvalidArgumentException', 'LogicException', 'Exception', 'Throwable']);
+        $sortie = 'A' . ($x < 0 ? 'D' : 'BC') . 'EF';
+        $why = $x < 0
+            ? "verifier($x) lève une exception : la fin du try (C) est sautée. catch ($classe) l'attrape, car InvalidArgumentException " . ($classe === 'InvalidArgumentException' ? 'est exactement cette classe' : 'en hérite') . ' : D. finally s\'exécute toujours (E), puis le script continue (F).'
+            : "Aucune exception : le try s'exécute en entier (A, B, C) et le catch est ignoré. finally s'exécute toujours (E), puis le script continue (F).";
 
         return creerSaisie('', [
-            'Avec ce tableau, que donne l\'expression ? (true, false, un nombre ou un texte)',
-            '|$t = [\'a\' => 1, \'b\' => null, \'c\' => 0];',
-            "|var_dump($expr);   // réponse = la valeur obtenue",
-        ], $rep, $why);
+            'Qu\'affiche ce code ? (les lettres, dans l\'ordre)',
+            '|function verifier(int $x): string {',
+            '|    if ($x < 0) {',
+            "|        throw new InvalidArgumentException('négatif');",
+            '|    }',
+            "|    return 'B';",
+            '|}',
+            '|try {',
+            "|    echo 'A';",
+            "|    echo verifier($x);",
+            "|    echo 'C';",
+            "|} catch ($classe \$e) {",
+            "|    echo 'D';",
+            '|} finally {',
+            "|    echo 'E';",
+            '|}',
+            "|echo 'F';",
+        ], $sortie, $why, false, 'des lettres, par exemple ABC');
     }],
 
-    // ───────── 10 · Formulaires robustes ─────────
-    'echappement' => ['10', static function (): array {
+    // ───────── 08 · Classes et objets ─────────
+    'objets_copie' => ['08', static function (): array {
+        $x = alea(1, 9);
+        $y = alea(10, 99);
+        $classe = '|class Boite { public int $v = 0; }';
+        $cas = [
+            [[$classe, '|$a = new Boite();', "|\$a->v = $x;", '|$b = $a;', "|\$b->v = $y;", '|echo $a->v;'], $y,
+                '$b = $a ne copie pas l\'objet : $a et $b désignent le même objet, la modification se voit des deux côtés.'],
+            [[$classe, '|$a = new Boite();', "|\$a->v = $x;", '|$b = clone $a;', "|\$b->v = $y;", '|echo $a->v;'], $x,
+                'clone crée un second objet : modifier $b ne touche pas $a.'],
+            [["|\$a = ['v' => $x];", '|$b = $a;', "|\$b['v'] = $y;", "|echo \$a['v'];"], $x,
+                'Un tableau est copié à l\'affectation : $b est indépendant de $a (contrairement à un objet).'],
+            [[$classe, "|function changer(Boite \$o): void { \$o->v = $y; }", '|$a = new Boite();', "|\$a->v = $x;", '|changer($a);', '|echo $a->v;'], $y,
+                'La fonction reçoit le même objet que l\'appelant : sa modification reste visible après l\'appel.'],
+            [["|function changer(array \$t): void { \$t['v'] = $y; }", "|\$a = ['v' => $x];", '|changer($a);', "|echo \$a['v'];"], $x,
+                'La fonction travaille sur une copie du tableau : l\'original n\'est pas modifié (il faudrait array &$t).'],
+        ];
+        [$lignes, $rep, $why] = tirer($cas);
+
+        return creerSaisie('', array_merge(['Qu\'affiche ce code ?'], $lignes), (string) $rep, $why);
+    }],
+
+    // ───────── 09 · Héritage et polymorphisme ─────────
+    'heritage' => ['09', static function (): array {
+        $variante = alea(1, 4);
+        $lignes = [
+            '|class Animal {',
+            '|    ' . ($variante === 4 ? 'private' : 'public') . " function parler(): string { return 'Bruit'; }",
+            "|    public function presenter(): string { return 'Je dis ' . \$this->parler(); }",
+            '|}',
+            '|class Chien extends Animal {',
+            "|    public function parler(): string { return 'Ouaf'; }",
+        ];
+        if ($variante === 3) {
+            $lignes[] = "|    public function presenter(): string { return parent::presenter() . ' !'; }";
+        }
+        $lignes[] = '|}';
+        $lignes[] = $variante === 2 ? '|echo (new Animal())->presenter();' : '|echo (new Chien())->presenter();';
+        $bonne = match ($variante) {
+            1 => 'Je dis Ouaf',
+            2 => 'Je dis Bruit',
+            3 => 'Je dis Ouaf !',
+            default => 'Je dis Bruit',
+        };
+        $why = match ($variante) {
+            1 => 'Polymorphisme : $this désigne un Chien, donc $this->parler() exécute la version redéfinie dans Chien.',
+            2 => 'L\'objet est un Animal : c\'est sa propre méthode parler() qui s\'exécute.',
+            3 => 'Chien::presenter() appelle parent::presenter(), qui utilise $this->parler() — la version de Chien — puis ajoute « ! ».',
+            default => 'Une méthode private n\'est pas redéfinissable : appelée depuis Animal, $this->parler() exécute Animal::parler(). Chien::parler() est une méthode distincte.',
+        };
+        $options = ['Je dis Ouaf', 'Je dis Bruit', 'Je dis Ouaf !', 'Je dis Bruit !', 'Une erreur fatale'];
+
+        return creerQcm('', array_merge(['Qu\'affiche ce code ?'], $lignes), $bonne, array_slice(melanger(array_values(array_diff($options, [$bonne]))), 0, 3), $why);
+    }],
+
+    // ───────── 11 · Namespaces et membres statiques ─────────
+    'statique_compteur' => ['11', static function (): array {
+        $k = alea(2, 5);
+        $j = alea(1, $k);
+        $noms = ['$a', '$b', '$c', '$d', '$e'];
+        $lignes = ['|class Ticket {', '|    public static int $total = 0;', '|    public int $numero;', '|    public function __construct() {', '|        self::$total++;', '|        $this->numero = self::$total;', '|    }', '|}'];
+        for ($i = 0; $i < $k; $i++) {
+            $lignes[] = '|' . $noms[$i] . ' = new Ticket();';
+        }
+        $lignes[] = "|echo Ticket::\$total . '-' . " . $noms[$j - 1] . '->numero;';
+
+        return creerSaisie('', array_merge(['Qu\'affiche ce code ?'], $lignes), "$k-$j",
+            "La propriété static \$total est partagée par toute la classe : elle vaut $k après $k créations. Chaque objet garde son propre \$numero : $j pour " . $noms[$j - 1] . '.', false, 'format : 3-1');
+    }],
+
+    // ───────── 12 · HTTP et superglobales ─────────
+    'query_string' => ['12', static function (): array {
+        $page = alea(2, 9);
+        $tri = tirer(['prix', 'nom', 'date']);
+        $tags = array_slice(melanger(['php', 'sql', 'js', 'css', 'html']), 0, alea(2, 3));
+        $query = "page=$page&tri=$tri&" . implode('&', array_map(static fn (string $t): string => "tags[]=$t", $tags));
+        parse_str($query, $get);
+        $cas = [
+            ["count(\$_GET['tags'])", (string) count($get['tags']), 'Les crochets de tags[] demandent à PHP de regrouper les valeurs dans un tableau.'],
+            ["\$_GET['tags'][1]", (string) $get['tags'][1], 'Les valeurs de tags[] sont rangées dans l\'ordre de l\'URL, à partir de l\'indice 0.'],
+            ["\$_GET['tri'] ?? 'nom'", (string) $get['tri'], 'La clé tri existe : ?? garde sa valeur.'],
+            ["\$_GET['q'] ?? 'aucune'", 'aucune', 'La clé q est absente : ?? fournit la valeur par défaut, sans avertissement.'],
+            ["gettype(\$_GET['page'])", 'string', 'Tout ce qui arrive dans l\'URL est une chaîne : "' . $page . '", pas ' . $page . '. On convertit après validation (filter_var).'],
+        ];
+        [$expr, $rep, $why] = tirer($cas);
+
+        return creerSaisie('', ["Requête reçue : GET /recherche?$query", 'Qu\'affiche ce code côté PHP ?', "|echo $expr;"], $rep, $why);
+    }],
+
+    // ───────── 13 · Formulaires et validation ─────────
+    'filter_var' => ['13', static function (): array {
+        $cas = [
+            ['42', 'FILTER_VALIDATE_INT'], [' 42 ', 'FILTER_VALIDATE_INT'], ['4.2', 'FILTER_VALIDATE_INT'], ['abc', 'FILTER_VALIDATE_INT'],
+            ['-7', 'FILTER_VALIDATE_INT'], ['007', 'FILTER_VALIDATE_INT'], ['0', 'FILTER_VALIDATE_INT'], ['12abc', 'FILTER_VALIDATE_INT'],
+            ['4.2', 'FILTER_VALIDATE_FLOAT'], ['4,2', 'FILTER_VALIDATE_FLOAT'], ['1e3', 'FILTER_VALIDATE_FLOAT'],
+            ['oui', 'FILTER_VALIDATE_BOOLEAN'], ['on', 'FILTER_VALIDATE_BOOLEAN'], ['1', 'FILTER_VALIDATE_BOOLEAN'],
+        ];
+        [$valeur, $filtre] = tirer($cas);
+        $bonne = texteVarDump(filter_var($valeur, constant($filtre)));
+        $pool = ['bool(false)', 'bool(true)', 'NULL', 'int(42)', 'int(0)', 'float(4.2)', 'string(' . strlen($valeur) . ') "' . $valeur . '"'];
+        $mauvaises = array_slice(melanger(array_values(array_unique(array_diff($pool, [$bonne])))), 0, 3);
+        $why = match ($filtre) {
+            'FILTER_VALIDATE_INT' => 'FILTER_VALIDATE_INT renvoie un int si la chaîne représente exactement un entier (espaces autour tolérés, pas de zéro en tête), sinon false.',
+            'FILTER_VALIDATE_FLOAT' => 'FILTER_VALIDATE_FLOAT accepte le point décimal et la notation scientifique, pas la virgule française : il renvoie un float ou false.',
+            default => 'FILTER_VALIDATE_BOOLEAN reconnaît "1", "true", "on" et "yes" comme vrais ; toute autre valeur donne false (ou null avec FILTER_NULL_ON_FAILURE).',
+        };
+
+        return creerQcm('', ['Que produit cet appel ?', "|var_dump(filter_var('$valeur', $filtre));"], $bonne, $mauvaises, $why . ' On teste toujours le résultat avec === false.');
+    }],
+
+    // ───────── 14 · Cookies et sessions ─────────
+    'cookie_secondes' => ['14', static function (): array {
+        $j = tirer([1, 7, 14, 30, 60, 90]);
+
+        return creerSaisie('', "Un cookie doit expirer dans $j jour(s) : quelle valeur (en secondes) ajoute-t-on à `time()` ?", (string) ($j * 86400),
+            "$j × 24 × 3600 = " . ($j * 86400) . ' secondes (86 400 s par jour).');
+    }],
+
+    // ───────── 15 · Sécurité des applications web ─────────
+    'csrf_hex' => ['15', static function (): array {
+        $n = tirer([8, 16, 24, 32, 48, 64]);
+
+        return creerSaisie('', "Combien de caractères retourne `bin2hex(random_bytes($n))` ?", (string) (2 * $n),
+            "Chaque octet s'écrit avec 2 caractères hexadécimaux : $n × 2 = " . (2 * $n) . ' (random_bytes(32) → jeton de 64 caractères).');
+    }],
+
+    'echappement' => ['15', static function (): array {
         $s = tirer(['<b>Dune</b>', 'Tom & Jerry', '"Alien"', '5 > 3', "L'Armée", '<script>alert(1)</script>', 'a<b', '"x" & \'y\'']);
         $rep = htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
@@ -455,24 +651,51 @@ return [
             '< → &lt; · > → &gt; · & → &amp; · " → &quot; · \' → &#039; (avec ENT_QUOTES).', false, 'entités : &lt; &gt; &amp; &quot; &#039;');
     }],
 
-    // ───────── 11 · Cookies ─────────
-    'cookie_secondes' => ['11', static function (): array {
-        $j = tirer([1, 7, 14, 30, 60, 90]);
+    // ───────── 16 · Fichiers, dates et JSON ─────────
+    'json_encode' => ['16', static function (): array {
+        $cas = [
+            ['json_encode([\'id\' => 7, \'titre\' => \'Dune\'])', json_encode(['id' => 7, 'titre' => 'Dune']), 'Un tableau associatif devient un objet JSON.'],
+            ['json_encode([])', json_encode([]), 'Un tableau vide devient `[]` : une liste vide reste `[]` dans le contrat.'],
+            ['json_encode([\'a\', \'b\'])', json_encode(['a', 'b']), 'Un tableau indexé de 0 à n-1 devient une liste JSON.'],
+            ['json_encode([1 => \'a\'])', json_encode([1 => 'a']), 'Les clés ne commencent pas à 0 : PHP produit un objet JSON.'],
+            ['json_encode(new stdClass())', json_encode(new stdClass()), 'Un objet vide devient `{}` (à ne pas confondre avec `[]`).'],
+            ['json_encode(null)', json_encode(null), 'null devient le littéral JSON null.'],
+            ['json_encode(true)', json_encode(true), 'Les booléens deviennent true/false en minuscules.'],
+            ['json_encode([\'ok\' => false, \'n\' => 3])', json_encode(['ok' => false, 'n' => 3]), 'Les types sont conservés : booléen et entier sans guillemets.'],
+        ];
+        [$code, $rep, $why] = tirer($cas);
 
-        return creerSaisie('', "Un cookie doit expirer dans $j jour(s) : quelle valeur (en secondes) ajoute-t-on à `time()` ?", (string) ($j * 86400),
-            "$j × 24 × 3600 = " . ($j * 86400) . ' secondes (86 400 s par jour).');
+        return creerSaisie('', ['Que retourne cet appel ? (tape le JSON obtenu)', "|echo $code;"], (string) $rep, $why);
     }],
 
-    // ───────── 12 · Sessions et sécurité ─────────
-    'csrf_hex' => ['12', static function (): array {
-        $n = tirer([8, 16, 24, 32, 48, 64]);
+    'json_decode' => ['16', static function (): array {
+        $age = alea(18, 80);
+        $nom = tirer(['Ada', 'Alan', 'Grace', 'Linus']);
+        $n = alea(2, 6);
+        $json = (string) json_encode(['nom' => $nom, 'age' => $age]);
+        $cas = [
+            ["\$d = json_decode('$json', true);", "echo \$d['age'];", (string) $age, 'Avec true, json_decode renvoie un tableau associatif : $d[\'age\'].'],
+            ["\$d = json_decode('$json');", 'echo $d->nom;', $nom, 'Sans second argument, json_decode renvoie un objet stdClass : on lit $d->nom.'],
+            ["\$d = json_decode('" . json_encode(range(1, $n)) . "', true);", 'echo count($d);', (string) $n, 'Une liste JSON devient un tableau indexé de 0 à n-1.'],
+            ["\$d = json_decode('{\"age\": $age');", "echo \$d === null ? 'null' : 'tableau';", 'null', 'Le JSON est mal formé (accolade fermante absente) : json_decode renvoie null. Avec JSON_THROW_ON_ERROR, on obtiendrait une JsonException.'],
+        ];
+        [$ligne1, $ligne2, $rep, $why] = tirer($cas);
 
-        return creerSaisie('', "Combien de caractères retourne `bin2hex(random_bytes($n))` ?", (string) (2 * $n),
-            "Chaque octet s'écrit avec 2 caractères hexadécimaux : $n × 2 = " . (2 * $n) . ' (random_bytes(32) → jeton de 64 caractères).');
+        return creerSaisie('', ['Qu\'affiche ce code ?', "|$ligne1", "|$ligne2"], $rep, $why);
     }],
 
-    // ───────── 15 · PDO : lire ─────────
-    'pagination' => ['15', static function (): array {
+    'date_ajout' => ['16', static function (): array {
+        $depart = (new DateTimeImmutable('2026-01-01'))->modify('+' . alea(0, 364) . ' days');
+        $modif = tirer(['+' . alea(2, 40) . ' days', '+' . alea(1, 4) . ' weeks', '-' . alea(2, 30) . ' days']);
+        $arrivee = $depart->modify($modif);
+
+        return creerSaisie('', ['Qu\'affiche ce code ? (JJ/MM/AAAA)', "|\$d = new DateTimeImmutable('" . $depart->format('Y-m-d') . "');", "|echo \$d->modify('$modif')->format('d/m/Y');"],
+            [$arrivee->format('d/m/Y'), $arrivee->format('Y-m-d')],
+            'modify() comprend les expressions relatives (+N days, +N weeks, -N days) et tient compte de la longueur des mois. Avec DateTimeImmutable, $d lui-même ne change pas. Résultat : ' . $arrivee->format('d/m/Y') . '.', false, 'format JJ/MM/AAAA');
+    }],
+
+    // ───────── 18 · PDO : connexion et lecture ─────────
+    'pagination' => ['18', static function (): array {
         $limite = tirer([6, 10, 12, 20, 24]);
         if (alea(0, 1) === 0) {
             $page = alea(2, 12);
@@ -488,8 +711,8 @@ return [
             "ceil($total / $limite) = $pages (un COUNT(*) préalable donne le total).");
     }],
 
-    // ───────── 17 · Transactions ─────────
-    'places' => ['17', static function (): array {
+    // ───────── 19 · PDO : écriture et transactions ─────────
+    'places' => ['19', static function (): array {
         $p = alea(1, 4);
         $k = alea($p + 1, 9);
 
@@ -501,15 +724,15 @@ return [
         ], (string) $p, "La mise à jour conditionnelle est atomique : seules les $p premières trouvent places_restantes > 0 ; les autres ont rowCount() = 0 → refus.");
     }],
 
-    // ───────── 19 · Composer ─────────
-    'psr4' => ['19', static function (): array {
+    // ───────── 20 · Composer et autoload ─────────
+    'psr4' => ['20', static function (): array {
         $classes = [
             ['App\\Domain\\Film', 'src/Domain/Film.php'],
             ['App\\Domain\\Duree', 'src/Domain/Duree.php'],
             ['App\\Repository\\FilmRepository', 'src/Repository/FilmRepository.php'],
             ['App\\Controller\\FilmController', 'src/Controller/FilmController.php'],
             ['App\\Service\\FilmValidator', 'src/Service/FilmValidator.php'],
-            ['App\\Service\\EmpruntService', 'src/Service/EmpruntService.php'],
+            ['App\\Service\\Facturation', 'src/Service/Facturation.php'],
             ['App\\Http\\JsonResponse', 'src/Http/JsonResponse.php'],
             ['App\\Database', 'src/Database.php'],
         ];
@@ -534,7 +757,7 @@ return [
             'PSR-4 : le préfixe `App\` est remplacé par `src/`, les `\` deviennent `/`, et le nom du fichier est identique au nom de la classe (casse comprise) + `.php`.');
     }],
 
-    // ───────── 21 · Slim ─────────
+    // ───────── 21 · MVC, routage et frameworks ─────────
     'route_args' => ['21', static function (): array {
         $id = alea(2, 999);
         $a = alea(2, 90);
@@ -554,8 +777,8 @@ return [
             'Les segments entre accolades sont capturés dans $args (toujours sous forme de chaîne) ; il faut les valider avant usage.');
     }],
 
-    // ───────── 24 · API REST ─────────
-    'http_statut' => ['24', static function (): array {
+    // ───────── 22 · API REST ─────────
+    'http_statut' => ['22', static function (): array {
         $libelles = [200 => '200 OK', 201 => '201 Created', 204 => '204 No Content', 303 => '303 See Other', 400 => '400 Bad Request',
             401 => '401 Unauthorized', 403 => '403 Forbidden', 404 => '404 Not Found', 415 => '415 Unsupported Media Type',
             422 => '422 Unprocessable Content', 500 => '500 Internal Server Error', 501 => '501 Not Implemented'];
@@ -573,7 +796,7 @@ return [
             ['Un visiteur non connecté demande une ressource protégée.', 401],
             ['Un membre connecté, non administrateur, tente de supprimer un film.', 403],
             ['L\'URL /films/abc est demandée (identifiant mal formé).', 400],
-            ['Le starter contient une route pas encore programmée.', 501],
+            ['Une route est déclarée, mais pas encore programmée.', 501],
         ];
         [$texte, $code] = tirer($scenarios);
         $autres = array_values(array_filter(array_keys($libelles), static fn (int $c): bool => $c !== $code));
@@ -583,34 +806,8 @@ return [
             'À retenir : 400 = requête inexploitable, 404 = ressource absente, 415 = média non géré, 422 = règle métier violée, 403 = interdit, 401 = non authentifié, 303 = redirection vers un GET, 204 = succès sans corps, 201 = créé, 500 = panne serveur.');
     }],
 
-    'json_encode' => ['24', static function (): array {
-        $cas = [
-            ['json_encode([\'id\' => 7, \'titre\' => \'Dune\'])', json_encode(['id' => 7, 'titre' => 'Dune']), 'Un tableau associatif devient un objet JSON.'],
-            ['json_encode([])', json_encode([]), 'Un tableau vide devient `[]` : une liste vide reste `[]` dans le contrat.'],
-            ['json_encode([\'a\', \'b\'])', json_encode(['a', 'b']), 'Un tableau indexé de 0 à n-1 devient une liste JSON.'],
-            ['json_encode([1 => \'a\'])', json_encode([1 => 'a']), 'Les clés ne commencent pas à 0 : PHP produit un objet JSON.'],
-            ['json_encode(new stdClass())', json_encode(new stdClass()), 'Un objet vide devient `{}` (à ne pas confondre avec `[]`).'],
-            ['json_encode(null)', json_encode(null), 'null devient le littéral JSON null.'],
-            ['json_encode(true)', json_encode(true), 'Les booléens deviennent true/false en minuscules.'],
-            ['json_encode([\'ok\' => false, \'n\' => 3])', json_encode(['ok' => false, 'n' => 3]), 'Les types sont conservés : booléen et entier sans guillemets.'],
-        ];
-        [$code, $rep, $why] = tirer($cas);
-
-        return creerSaisie('', ['Que retourne cet appel ? (tape le JSON obtenu)', "|echo $code;"], (string) $rep, $why);
-    }],
-
-    // ───────── 25 · Médiathèque ─────────
-    'echeance' => ['25', static function (): array {
-        $debut = new DateTimeImmutable('2026-01-01');
-        $date = $debut->modify('+' . alea(0, 360) . ' days');
-        $echeance = $date->modify('+21 days');
-
-        return creerSaisie('', 'Un adhérent emprunte un document le ' . $date->format('d/m/Y') . '. Avec 21 jours de prêt, quelle est la date d\'échéance ? (JJ/MM/AAAA ou AAAA-MM-JJ)',
-            [$echeance->format('d/m/Y'), $echeance->format('Y-m-d')], 'Calcul côté serveur : `$maintenant->modify(\'+21 days\')` (DateTimeImmutable renvoie une nouvelle date) → ' . $echeance->format('d/m/Y') . '.');
-    }],
-
-    // ───────── 26 · Sécuriser une API : JWT ─────────
-    'jwt_exp' => ['26', static function (): array {
+    // ───────── 23 · Sécuriser une API : JWT ─────────
+    'jwt_exp' => ['23', static function (): array {
         $h = alea(8, 20);
         $m = alea(0, 59);
         $duree = tirer([300, 600, 900, 1200, 1800, 3600]);
@@ -625,7 +822,7 @@ return [
             false, 'format HH:MM');
     }],
 
-    'jwt_verification' => ['26', static function (): array {
+    'jwt_verification' => ['23', static function (): array {
         $fmt = static fn (int $t): string => sprintf('%02d:%02d', intdiv($t, 60), $t % 60);
         $maintenant = alea(9, 18) * 60 + alea(0, 59);
         $probleme = tirer(['aucun', 'aucun', 'signature', 'expire', 'iss', 'aud']);
@@ -651,7 +848,7 @@ return [
             'Le middleware vérifie la signature, exp, iss et aud (et sub). Ici, ' . $raisons[$probleme]);
     }],
 
-    'jwt_statut' => ['26', static function (): array {
+    'jwt_statut' => ['23', static function (): array {
         $libelles = [200 => '200 OK', 204 => '204 No Content', 400 => '400 Bad Request', 401 => '401 Unauthorized',
             403 => '403 Forbidden', 422 => '422 Unprocessable Content', 429 => '429 Too Many Requests'];
         $scenarios = [
@@ -674,8 +871,8 @@ return [
             "401 = jeton absent, invalide ou expiré (ou identifiants faux) ; 403 = identité reconnue mais action interdite ; 204 = suppression réussie sans corps ; 429 = trop de tentatives ; 400 = JSON illisible ; 422 = JSON lisible mais incomplet ou invalide.");
     }],
 
-    // ───────── 27 · JavaScript : les fondamentaux ─────────
-    'js_expression' => ['27', static function (): array {
+    // ───────── 24 · JavaScript : les fondamentaux ─────────
+    'js_expression' => ['24', static function (): array {
         $a = alea(2, 9);
         $b = alea(2, 9);
         $c = alea(2, 9);
@@ -695,7 +892,7 @@ return [
             $why . " Pour calculer à partir d'une saisie, on convertit d'abord avec Number().");
     }],
 
-    'js_typeof' => ['27', static function (): array {
+    'js_typeof' => ['24', static function (): array {
         $n = alea(2, 99);
         $cas = [
             [(string) $n, 'number'], ["\"$n\"", 'string'], ['true', 'boolean'], ['undefined', 'undefined'],
@@ -711,7 +908,7 @@ return [
             'typeof renvoie une chaîne : "number" (y compris NaN et Infinity), "string", "boolean", "undefined", "object" (les tableaux et les objets ne sont pas des primitives) ou "function".');
     }],
 
-    'js_falsy' => ['27', static function (): array {
+    'js_falsy' => ['24', static function (): array {
         $falsy = ['0', '""', 'null', 'undefined', 'NaN', 'false', '-0'];
         $truthy = ['"0"', '"false"', '[]', '{}', '1', '-1', '" "', 'Infinity', '"null"'];
         $nbFalsy = alea(1, 4);
@@ -721,7 +918,7 @@ return [
             'Falsy : false, 0, -0, "", null, undefined et NaN. Tout le reste est truthy : une chaîne non vide (même "0", "false" ou " "), [] et {}, les nombres non nuls.');
     }],
 
-    'js_boucle' => ['27', static function (): array {
+    'js_boucle' => ['24', static function (): array {
         $debut = alea(0, 3);
         $pas = alea(1, 3);
         $fin = $debut + alea(4, 12);
@@ -741,7 +938,7 @@ return [
             (string) count($valeurs), "i prend les valeurs $suite : la boucle fait " . count($valeurs) . " tours. Attention à < ou <=, et au pas i += $pas.");
     }],
 
-    'js_divisions' => ['27', static function (): array {
+    'js_divisions' => ['24', static function (): array {
         do {
             $k = alea(0, 7);
             $n = (2 * alea(1, 60) + 1) * (2 ** $k);
@@ -752,11 +949,11 @@ return [
             $etapes[] = $x;
         }
 
-        return creerSaisie('', ["Que s'affiche-t-il ? (exercice « divisions successives par deux »)", "|let n = $n;", '|let divisions = 0;', '|while (n % 2 === 0) {', '|    n = n / 2;', '|    divisions++;', '|}', '|console.log(divisions);'],
+        return creerSaisie('', ["Que s'affiche-t-il ?", "|let n = $n;", '|let divisions = 0;', '|while (n % 2 === 0) {', '|    n = n / 2;', '|    divisions++;', '|}', '|console.log(divisions);'],
             (string) $k, 'Suite : ' . implode(' → ', $etapes) . ($k === 0 ? " : $n est impair, la boucle ne tourne pas." : " : $k division(s), on s'arrête sur un nombre impair."));
     }],
 
-    'js_tableau' => ['27', static function (): array {
+    'js_tableau' => ['24', static function (): array {
         $t = [];
         while (count($t) < 3) {
             $v = alea(1, 9);
@@ -813,11 +1010,11 @@ return [
         return creerSaisie('', ['Que vaut r ?', '|const t = ' . listeJs($t) . ';', "|const r = $appel;", '|console.log(r);'], $rep, $why, false, str_starts_with($rep, '[') ? 'format : [1]' : '');
     }],
 
-    // ───────── 28 · JavaScript : fonctions, stockage, JSON ─────────
-    'js_json' => ['28', static function (): array {
+    // ───────── 25 · JavaScript : fonctions, objets et stockage ─────────
+    'js_json' => ['25', static function (): array {
         $q = alea(0, 60);
         $p = alea(2, 9);
-        $nom = tirer(['Gants', 'Compresses', 'Pansements', 'Sirop']);
+        $nom = tirer(['Stylo', 'Cahier', 'Gomme', 'Règle']);
         [$code, $rep, $why] = tirer([
             ["{ nom: \"$nom\", quantite: $q }", "{\"nom\":\"$nom\",\"quantite\":$q}", 'Les clés passent entre guillemets doubles ; les nombres restent sans guillemets.'],
             ["[$q, \"$nom\", true, null]", "[$q,\"$nom\",true,null]", 'Un tableau devient une liste JSON ; true et null restent des littéraux.'],
@@ -830,27 +1027,7 @@ return [
         return creerSaisie('', ['Que produit cet appel ? (tape le texte JSON obtenu)', "|JSON.stringify($code)"], $rep, $why . " JSON.parse fait l'inverse : texte → valeur.");
     }],
 
-    'js_quantite' => ['28', static function (): array {
-        $n = alea(1, 40);
-        [$arg, $rep, $why] = tirer([
-            ["\"$n\"", (string) $n, 'la chaîne représente un entier positif : acceptée.'],
-            ['"0"', '0', '0 est un entier positif ou nul : accepté (à ne pas confondre avec null).'],
-            ['""', 'null', 'la chaîne vide est refusée avant toute conversion.'],
-            ['"   "', 'null', 'après trim(), la chaîne est vide : refusée.'],
-            ["\" $n \"", (string) $n, "Number() ignore les espaces de début et de fin : la saisie devient $n."],
-            ["\"$n.5\"", 'null', "$n.5 n'est pas un entier : Number.isInteger renvoie false."],
-            ["\"-$n\"", 'null', 'un entier négatif est refusé (nombre < 0).'],
-            ['"abc"', 'null', 'Number("abc") vaut NaN, et Number.isInteger(NaN) est faux.'],
-            ['null', 'null', "c'est l'annulation de prompt() : null est refusé dès le premier test."],
-            ['"1e2"', '100', 'piège : Number("1e2") vaut 100 (notation scientifique), un entier positif, donc accepté !'],
-            ["\"{$n}kg\"", 'null', "Number(\"{$n}kg\") vaut NaN : refusé."],
-        ]);
-
-        return creerSaisie('', ['Que renvoie le dernier appel ? (un nombre, ou null)', '|function convertirQuantite(saisie) {', '|    if (saisie === null || saisie.trim() === "") {', '|        return null;', '|    }', '|    const nombre = Number(saisie);', '|    if (!Number.isInteger(nombre) || nombre < 0) {', '|        return null;', '|    }', '|    return nombre;', '|}', "|convertirQuantite($arg);"],
-            $rep, 'Contrat : un entier positif ou nul, sinon null. Ici, ' . $why);
-    }],
-
-    'js_json_parse' => ['28', static function (): array {
+    'js_json_parse' => ['25', static function (): array {
         $n = alea(2, 99);
         [$arg, $bonne, $why] = tirer([
             ["'{\"quantite\": $n}'", "Renvoie un objet dont quantite vaut $n", 'Objet JSON valide : clés entre guillemets doubles.'],
@@ -872,8 +1049,28 @@ return [
             $why . " D'où le try / catch autour de JSON.parse quand on relit une donnée stockée.");
     }],
 
-    // ───────── 29 · JavaScript : DOM et événements ─────────
-    'js_selecteur' => ['29', static function (): array {
+    'js_conversion' => ['25', static function (): array {
+        $n = alea(1, 40);
+        [$arg, $rep, $why] = tirer([
+            ["\"$n\"", (string) $n, 'la chaîne représente un entier positif : acceptée.'],
+            ['"0"', '0', '0 est un entier positif ou nul : accepté (à ne pas confondre avec null).'],
+            ['""', 'null', 'la chaîne vide est refusée avant toute conversion.'],
+            ['"   "', 'null', 'après trim(), la chaîne est vide : refusée.'],
+            ["\" $n \"", (string) $n, "Number() ignore les espaces de début et de fin : la saisie devient $n."],
+            ["\"$n.5\"", 'null', "$n.5 n'est pas un entier : Number.isInteger renvoie false."],
+            ["\"-$n\"", 'null', 'un entier négatif est refusé (nombre < 0).'],
+            ['"abc"', 'null', 'Number("abc") vaut NaN, et Number.isInteger(NaN) est faux.'],
+            ['null', 'null', "c'est l'annulation de prompt() : null est refusé dès le premier test."],
+            ['"1e2"', '100', 'piège : Number("1e2") vaut 100 (notation scientifique), un entier positif, donc accepté !'],
+            ["\"{$n}kg\"", 'null', "Number(\"{$n}kg\") vaut NaN : refusé."],
+        ]);
+
+        return creerSaisie('', ['Que renvoie le dernier appel ? (un nombre, ou null)', '|function convertirEntier(saisie) {', '|    if (saisie === null || saisie.trim() === "") {', '|        return null;', '|    }', '|    const nombre = Number(saisie);', '|    if (!Number.isInteger(nombre) || nombre < 0) {', '|        return null;', '|    }', '|    return nombre;', '|}', "|convertirEntier($arg);"],
+            $rep, 'Contrat : un entier positif ou nul, sinon null. Ici, ' . $why);
+    }],
+
+    // ───────── 26 · JavaScript : DOM et événements ─────────
+    'js_selecteur' => ['26', static function (): array {
         $elements = [];
         $nb = alea(4, 6);
         for ($i = 0; $i < $nb; $i++) {
@@ -908,44 +1105,7 @@ return [
             "Le point vise une classe, # un id, [attribut='valeur'] un attribut ; l'espace désigne un descendant et .a.b exige les deux classes sur le même élément. Ici : $n élément(s).");
     }],
 
-    'js_matrice' => ['29', static function (): array {
-        $type = static fn (int $l, int $c): string => $c === 0 ? 'carré' : ($l === 1 && $c === 1 ? 'losange' : 'rond');
-        $etat = array_fill(0, 3, array_fill(0, 3, false));
-        $lignes = [];
-        $nb = alea(2, 3);
-        for ($i = 0; $i < $nb; $i++) {
-            $l = alea(0, 2);
-            $c = alea(0, 2);
-            $t = $type($l, $c);
-            $nouvel = !$etat[$l][$c];
-            $etat[$l][$c] = $nouvel;
-            if ($t !== 'rond') {
-                for ($k = 0; $k < 3; $k++) {
-                    $etat[$l][$k] = $nouvel;
-                }
-            }
-            if ($t === 'losange') {
-                for ($k = 0; $k < 3; $k++) {
-                    $etat[$k][$c] = $nouvel;
-                }
-            }
-            $lignes[] = sprintf('|clic %d : %s en ligne %d, colonne %d', $i + 1, $t, $l, $c);
-        }
-        $pleines = 0;
-        $dessin = [];
-        foreach ($etat as $rangee) {
-            $dessin[] = implode('', array_map(static fn (bool $x): string => $x ? '■' : '□', $rangee));
-            $pleines += count(array_filter($rangee));
-        }
-
-        return creerSaisie('', array_merge([
-            'Matrice 3 × 3 (lignes et colonnes numérotées de 0 à 2), toutes les formes vides au départ. Colonne 0 : des carrés ; case (1, 1) : un losange ; autres cases : des ronds.',
-            "Rond : inverse son état. Carré : inverse son état puis l'impose à toute sa ligne. Losange : inverse son état puis l'impose à sa ligne et à sa colonne. Après ces clics, combien de formes sont pleines ?",
-        ], $lignes), (string) $pleines,
-            'État final, ligne par ligne (■ plein, □ vide) : ' . implode(' / ', $dessin) . ". Le nouvel état de la forme cliquée est imposé aux autres, pas inversé une seconde fois.");
-    }],
-
-    'js_classlist' => ['29', static function (): array {
+    'js_classlist' => ['26', static function (): array {
         $classes = ['carte'];
         $lignes = ['|// au départ : <div id="zone" class="carte">', '|const zone = document.querySelector("#zone");'];
         $nb = alea(3, 4);
@@ -992,5 +1152,30 @@ return [
 
         return creerQcm('', array_merge(["Quelles classes porte l'élément à la fin ? (classées par ordre alphabétique)"], $lignes), $bonne, $mauvaises,
             "add ajoute (sans doublon), remove retire, toggle inverse ; toggle(classe, true) ajoute et toggle(classe, false) retire, quel que soit l'état. Résultat : $bonne.");
+    }],
+
+    // ───────── 27 · JavaScript : asynchrone et fetch ─────────
+    'js_ordre' => ['27', static function (): array {
+        [$a, $b, $c, $d] = array_slice(melanger(['A', 'B', 'C', 'D', 'E']), 0, 4);
+        $log = static fn (string $x): string => 'console.log("' . $x . '")';
+        $modeles = [
+            [[$log($a) . ';', 'setTimeout(() => ' . $log($b) . ', 0);', $log($c) . ';'], $a . $c . $b,
+                'setTimeout place le rappel dans la file des tâches : il attend la fin du code synchrone, même avec un délai de 0.'],
+            [[$log($a) . ';', 'Promise.resolve().then(() => ' . $log($b) . ');', $log($c) . ';'], $a . $c . $b,
+                'Le rappel d\'une promesse est une microtâche : il s\'exécute après le code synchrone.'],
+            [[$log($a) . ';', 'setTimeout(() => ' . $log($b) . ', 0);', 'Promise.resolve().then(() => ' . $log($c) . ');', $log($d) . ';'], $a . $d . $c . $b,
+                'Le code synchrone d\'abord, puis les microtâches (promesses), puis les tâches (setTimeout).'],
+            [['setTimeout(() => ' . $log($a) . ', 0);', 'Promise.resolve().then(() => ' . $log($b) . ');', $log($c) . ';'], $c . $b . $a,
+                'Seul le dernier console.log est synchrone ; la promesse (microtâche) passe ensuite avant setTimeout (tâche).'],
+            [['setTimeout(() => ' . $log($a) . ', 50);', 'setTimeout(() => ' . $log($b) . ', 0);', $log($c) . ';'], $c . $b . $a,
+                'Le code synchrone d\'abord ; les minuteurs se déclenchent ensuite selon leur délai (0 ms avant 50 ms).'],
+            [['async function f() {', '    ' . $log($a) . ';', '    await null;', '    ' . $log($b) . ';', '}', 'f();', $log($c) . ';'], $a . $c . $b,
+                'Une fonction async s\'exécute de façon synchrone jusqu\'au premier await ; la suite reprend plus tard, en microtâche.'],
+        ];
+        [$code, $ordre, $why] = tirer($modeles);
+        $lettres = str_split($ordre);
+
+        return creerSaisie('', array_merge(['Dans quel ordre les lettres s\'affichent-elles dans la console ?'], array_map(static fn (string $l): string => '|' . $l, $code)),
+            [$ordre, implode(', ', $lettres)], $why . ' Ordre : ' . implode(', ', $lettres) . '.', false, 'les lettres dans l\'ordre, par exemple ABC');
     }],
 ];

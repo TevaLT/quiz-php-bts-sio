@@ -1,6 +1,7 @@
-// Banque de questions — chapitres 09 à 13 (le web avec PHP)
+// Banque de questions — chapitres 12 à 15 : PHP et le web (HTTP, formulaires, cookies, sessions, sécurité)
+// Format : voir banque/README.md   ([cours] = notion tirée d'un cours, voir SOURCES.md)
 
-# 09
+# 12
 
 Q: Quelle méthode HTTP convient à une recherche dont on veut pouvoir partager l'URL ?
 + GET : les critères sont visibles dans l'URL
@@ -35,7 +36,7 @@ Q: Que se passe-t-il avec trim($_GET['q']) quand l'URL est ?q[]=alien ?
 - trim renvoie la chaîne "Array" et ajoute un avertissement discret
 - trim renvoie une chaîne vide, sans aucune erreur ni avertissement
 - trim traite chaque élément du tableau et renvoie un tableau
-? C'est pourquoi lireFiltres appelle is_string() avant trim(). Un attaquant peut toujours forger la forme des paramètres.
+? C'est pourquoi on vérifie is_string() avant trim(). Un attaquant peut toujours forger la forme des paramètres.
 
 Q: Un champ de formulaire sans attribut name… [cours]
 + n'est pas envoyé : il est absent de $_GET et $_POST
@@ -93,26 +94,19 @@ Q: Une fonction peut-elle lire $_GET sans que celui-ci lui soit passé ? [cours]
 - Non, sauf pour $_SERVER, qui est la seule superglobale
 ? « Accessible partout » ne veut pas dire « fiable partout ». On lit $_GET une seule fois à l'entrée puis on passe des variables ordinaires.
 
-Q: Pourquoi lireFiltres reçoit-elle un tableau en paramètre au lieu de lire $_GET ?
-+ On peut la tester avec n'importe quelle source de données
+Q: Pourquoi une fonction de filtrage reçoit-elle les critères en paramètre au lieu de lire $_GET elle-même ?
++ On peut la tester avec n'importe quelle source de données, sans navigateur
 - PHP interdit de lire $_GET à l'intérieur d'une fonction
 - $_GET n'existe que dans le code placé hors des fonctions
 - Lire $_GET dans une fonction ralentit fortement la requête
-? Une fonction qui ne dépend d'aucune superglobale est testable sans navigateur.
+? Une fonction qui ne dépend d'aucune superglobale se teste avec un simple tableau : filtrer($produits, ['q' => 'stylo']).
 
-Q: Dans filtrerFilms, comment se combinent les critères ?
-+ ET entre critères actifs ; OU à l'intérieur des genres cochés
-- OU partout : un seul critère satisfait suffit à garder le film
-- ET partout, y compris entre les différents genres cochés
-- Seul le premier critère actif est appliqué, les autres ignorés
-? Un film doit respecter tous les critères actifs ; mais plusieurs genres cochés sont des possibilités alternatives.
-
-Q: Aucun film ne correspond aux filtres. Que retourne filtrerFilms ?
+Q: Une recherche ne trouve aucun résultat. Que doit retourner la fonction de recherche ?
 + Un tableau vide : ce n'est pas une erreur
 - false, pour signaler l'échec de la recherche
 - null, pour signaler l'absence de résultat
-- Une LogicException indiquant qu'il n'y a rien
-? Un résultat vide est normal : la page affichera un message « aucun résultat ».
+- Une exception indiquant qu'il n'y a rien
+? Un résultat vide est un cas normal : la page affichera un message « aucun résultat ». Garder le même type de retour simplifie le code appelant.
 
 Q: Quel statut HTTP signale une requête mal formée, par exemple des paramètres de structure incohérente ?
 = 400
@@ -139,13 +133,6 @@ Q: Quelles données sont contrôlables par un client malveillant ?
 - Le code source PHP du serveur
 ? Tout ce qui arrive dans la requête est modifiable : GET, POST, COOKIE, en-têtes. Seul le code serveur est hors de portée.
 
-Q: Dans un squelette de code fourni, que signifie une LogicException('À compléter') ?
-+ Un marqueur « fonction vide » à remplacer par l'algorithme
-- Une exception à déclencher pour les URL sans paramètre
-- Un comportement normal, attendu par les tests
-- Une exception à conserver pour les requêtes falsifiées
-? C'est un marqueur provisoire, pas le résultat attendu : une fois la fonction écrite, une URL sans paramètre est un cas normal qui ne doit lancer aucune exception.
-
 Q: Que faire de var_dump($_GET) utilisé pendant l'apprentissage ? [cours]
 + Le retirer de la version finale : il peut révéler des données
 - Le laisser pour aider les utilisateurs à déboguer eux-mêmes
@@ -153,7 +140,32 @@ Q: Que faire de var_dump($_GET) utilisé pendant l'apprentissage ? [cours]
 - L'envelopper dans htmlspecialchars puis le garder en production
 ? C'est un outil de diagnostic, pas une interface utilisateur.
 
-# 10
+Q: Pourquoi une action qui crée une donnée ne doit-elle pas passer par un formulaire en method="get" ? [cours]
++ L'URL peut être rejouée, mise en favori ou préchargée : l'action se répéterait
+- GET interdit d'envoyer plus d'un champ dans la requête du formulaire
+- Les données en GET sont chiffrées, donc illisibles par le serveur PHP
+- GET ne permet pas de lire les valeurs avec $_GET côté serveur
+? GET sert à consulter, sans effet de bord : une URL de création est rejouable (rafraîchissement, historique, liens suivis automatiquement). On crée avec POST.
+
+Q: Quelle entrée de $_SERVER indique la méthode HTTP de la requête (GET, POST…) ?
+= REQUEST_METHOD | $_SERVER['REQUEST_METHOD']
+? if ($_SERVER['REQUEST_METHOD'] === 'POST') { … } distingue l'affichage d'un formulaire (GET) de son traitement (POST).
+
+Q: Quel attribut faut-il ajouter à <form method="post"> pour envoyer un fichier ?
++ enctype="multipart/form-data"
+- type="file" sur la balise form
+- accept="upload" sur la balise form
+- method="file" à la place de post
+? Le fichier arrive alors dans $_FILES (nom, type déclaré, taille, chemin temporaire, code d'erreur). On vérifie la taille et le vrai type côté serveur, puis move_uploaded_file().
+
+Q: Que fait http_response_code(404); ?
++ Il fixe le code de statut de la réponse HTTP envoyée
+- Il redirige le navigateur vers la page d'erreur 404
+- Il arrête immédiatement le script en cours
+- Il enregistre l'erreur 404 dans le journal du serveur
+? Le statut doit refléter le résultat : 404 pour une ressource absente, même si une page HTML explicative est affichée ensuite.
+
+# 13
 
 Q: Quelle est la différence entre normaliser et valider ? [cours]
 + Normaliser rend la donnée cohérente ; valider juge si elle est acceptable
@@ -187,6 +199,13 @@ Q: Pourquoi échapper à la sortie plutôt qu'avant d'enregistrer ? [cours]
 - PHP échappe déjà automatiquement tout ce qui est affiché
 ? On conserve la donnée brute ou validée pour les traitements internes, et on échappe au dernier moment selon le contexte.
 
+Q: Quand faut-il appeler htmlspecialchars ?
++ Au moment de produire le HTML, pour chaque donnée dynamique
+- Avant d'enregistrer la donnée dans la base ou le fichier
+- Une seule fois, dès la réception de la donnée par le serveur
+- Seulement pour les valeurs reçues par la méthode GET
+? On échappe pour le contexte de sortie. Échapper trop tôt provoque des doubles échappements et ne protège pas les autres contextes.
+
 Q: Que fait ENT_QUOTES ?
 + Il convertit aussi les guillemets, utile dans un attribut HTML
 - Il ajoute des guillemets autour de la valeur échappée
@@ -208,6 +227,13 @@ Q: Pourquoi tester filter_var(...) === false et non seulement if (!$age) ?
 - Parce que === s'exécute plus rapidement que le test lâche
 ? Pour une note ou un nombre de places, 0 peut être une valeur légitime.
 
+Q: Que retourne filter_var('42', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 10]]) ?
++ false : 42 est un entier, mais hors de l'intervalle autorisé
+- 42 : les options min_range et max_range sont seulement indicatives
+- 10 : la valeur est ramenée à la borne la plus proche
+- null : la valeur est hors bornes, donc considérée comme absente
+? Les options combinent le contrôle du format et celui des bornes en un seul appel. On teste toujours le résultat avec === false.
+
 Q: FILTER_VALIDATE_EMAIL prouve-t-il que l'adresse existe ? [cours]
 + Non : il vérifie une forme plausible, pas l'existence de la boîte
 - Oui : il interroge le serveur de messagerie du domaine saisi
@@ -216,13 +242,13 @@ Q: FILTER_VALIDATE_EMAIL prouve-t-il que l'adresse existe ? [cours]
 ? user@example.com est valide, user@ ne l'est pas. La syntaxe est vérifiable, l'existence de la boîte non.
 
 Q: Que fait ce contrôle ?
-|if (!in_array($seance, ['alien', 'metropolis', 'parasite'], true)) {
-|    $erreurs['seance'] = 'Séance inconnue.';
+|if (!in_array($taille, ['petit', 'moyen', 'grand'], true)) {
+|    $erreurs['taille'] = 'Taille inconnue.';
 |}
-+ Il refuse toute valeur différente des trois séances autorisées
++ Il refuse toute valeur différente des trois tailles autorisées
 - Il accepte aussi les valeurs qui ressemblent à l'une des trois
-- Il trie les séances avant de les afficher dans le formulaire
-- Il vérifie que la séance existe vraiment dans la base de données
+- Il trie les tailles avant de les afficher dans le formulaire
+- Il vérifie que la taille existe vraiment dans la base de données
 ? C'est une liste blanche : le serveur impose l'ensemble réellement accepté, indépendamment du <select> HTML. Le true active la comparaison stricte.
 
 Q: Le nom doit contenir de 2 à 60 caractères. Quelles longueurs testent les bornes ?
@@ -246,6 +272,10 @@ Q: Quel est l'effet du motif Post/Redirect/Get ?
 - La session est supprimée dès que le formulaire est envoyé
 ? POST écrit, le serveur redirige, le navigateur recharge en GET. L'URL finale est propre, partageable et mémorisable.
 
+Q: Comment s'appelle le motif « traiter le POST, rediriger en 303, afficher en GET » ? (sigle ou nom complet)
+= PRG | Post/Redirect/Get | Post-Redirect-Get
+? Post/Redirect/Get : après le traitement, la redirection 303 mène à une page GET ; un rafraîchissement ne renvoie donc pas le formulaire.
+
 Q: Pourquoi un statut 303 pour la redirection après un POST ? [cours]
 + 303 See Other invite le navigateur à poursuivre en GET
 - 301 convient mieux car la redirection est définitive
@@ -266,13 +296,6 @@ Q: Quelle est la cause de « Cannot modify header information - headers already 
 - La session de l'utilisateur a expiré juste avant l'appel à header()
 - Le serveur a dépassé son nombre maximal de redirections successives
 ? Les en-têtes HTTP doivent partir avant tout contenu. Remède : appeler header/setcookie/session_start en tout début de script, et omettre le ?> final.
-
-Q: On saisit <img src=x onerror=alert(1)> comme nom. Quel est le résultat correct ?
-+ Le texte est affiché échappé ou rejeté, mais ne s'exécute jamais
-- Une alerte s'affiche : c'est le comportement normal du navigateur
-- L'image est chargée, puis PHP la supprime de la page
-- Le serveur répond systématiquement par une erreur 500 interne
-? Le test XSS de référence : après htmlspecialchars, la balise s'affiche comme du texte (&lt;img …).
 
 Q: Que risque-t-on sans contrôle de type quand nom[]=x est envoyé en POST ?
 + Un TypeError (trim ou mb_strlen reçoit un tableau)
@@ -302,7 +325,50 @@ Q: Comment structure-t-on les erreurs de validation ?
 - Un entier qui indique seulement le nombre d'erreurs trouvées
 ? Une clé par champ permet d'afficher chaque message près de son champ ; accumuler toutes les erreurs avant d'afficher évite de recharger à chaque faute.
 
-# 11
+Q: Comment conserver les critères de recherche dans les liens de pagination ?
++ Avec http_build_query appliqué aux critères déjà validés
+- En les recollant à la main dans le lien, sans les encoder
+- En les stockant dans un cookie persistant valable un an
+- En les mettant dans un champ caché placé hors du lien
+? http_build_query encode correctement les valeurs et les tableaux (genres[]=…).
+
+Q: Pourquoi l'ordre de tri d'une liste (?tri=prix) est-il choisi dans une liste blanche ?
++ Pour ne jamais accepter un tri arbitraire envoyé par le client
+- Pour que le tri s'exécute plus rapidement sur de gros volumes
+- Pour éviter d'avoir à utiliser la fonction usort ensuite
+- Parce que PHP ne sait pas trier plus de trois colonnes à la fois
+? La valeur reçue est comparée à un ensemble de choix connus (nom, prix, date), avec une valeur par défaut. Un nom de colonne ne peut pas non plus être un paramètre de requête préparée.
+
+Q: Que doit afficher une liste quand aucun élément ne correspond aux critères ?
++ Un état « aucun résultat » clair, pas une erreur
+- Une page blanche, sans aucun message d'explication
+- Une page d'erreur 404 renvoyée par le serveur
+- Tous les éléments de la liste, en ignorant les filtres
+? Un résultat vide est un cas normal, à traiter proprement.
+
+Q: Qu'est-ce qui est dangereux dans ce champ caché d'un formulaire de réservation ? [cours]
+|<input type="hidden" name="utilisateur_id" value="42">
++ Le client peut le modifier : l'identité doit venir de la session, pas du formulaire
+- Un champ caché est envoyé en clair, alors qu'un champ visible serait chiffré
+- Un champ caché ne peut pas être lu par PHP dans le tableau $_POST
+- La valeur 42 est trop courte pour être acceptée par le navigateur
+? hidden masque le champ à l'écran, pas au client : les DevTools ou curl peuvent changer la valeur et réserver au nom d'autrui. L'identité de l'utilisateur se détermine côté serveur, depuis la session authentifiée.
+
+Q: Quels défauts présente ce formulaire de réservation ? [cours]
+|<form action="/reservations" method="get">
+|    <input id="seance_id" type="number" min="1" required>
+|    <input type="hidden" name="utilisateur_id" value="42">
+|    <button type="submit">Réserver</button>
+|</form>
++ method="get" pour une action qui crée une donnée
++ Le champ seance_id n'a pas d'attribut name : il ne sera pas envoyé
++ L'identité de l'utilisateur vient d'un champ caché modifiable
++ Aucun jeton CSRF n'est transmis avec la requête
+- L'attribut min="1" est interdit sur un champ de type number
+- Un bouton submit ne peut pas se trouver à l'intérieur d'un form
+? id relie le champ à son label et au DOM ; name donne la clé reçue par PHP. Le serveur doit en plus tout revalider : required et min ne protègent que côté navigateur.
+
+# 14
 
 Q: Où un cookie est-il stocké ?
 + Dans le navigateur, qui le renvoie à chaque requête concernée
@@ -417,8 +483,6 @@ Q: Que dire des cookies analytiques ? [cours]
 - Ils ne concernent que les administrateurs du site
 ? Distinguer le fonctionnement indispensable du suivi optionnel ; minimiser la collecte, expliquer la finalité.
 
-# 12
-
 Q: Que contient le cookie PHPSESSID ?
 + Seulement un identifiant de session aléatoire
 - Toutes les données de $_SESSION, chiffrées
@@ -440,19 +504,12 @@ Q: Où appeler session_start() ?
 - À la fin du script, pour enregistrer les données
 ? Sinon : « headers already sent », car le cookie de session est envoyé via un en-tête.
 
-Q: Que se passe-t-il quand on appelle deux fois ajouterFavori avec le même identifiant ?
-+ Un seul exemplaire est conservé : l'opération est idempotente
-- Deux exemplaires de l'identifiant sont enregistrés dans la session
-- Une exception InvalidArgumentException signale le doublon
-- Le favori est retiré de la session dès le deuxième appel
-? On teste in_array($id, $favoris, true) avant d'ajouter. Retirer un identifiant absent ne provoque aucune erreur non plus.
-
 Q: Que signifie « idempotent » ?
 + Répéter l'opération ne change pas le résultat final
 - L'opération est impossible à annuler une fois exécutée
 - L'opération est automatiquement chiffrée par le serveur
 - L'opération ne peut s'exécuter qu'une seule fois par session
-? Idempotent : même état final après une ou plusieurs exécutions (ajout de favori, DELETE, PUT).
+? Idempotent : même état final après une ou plusieurs exécutions (ajout d'un favori déjà présent, DELETE, PUT). On teste in_array($id, $favoris, true) avant d'ajouter.
 
 Q: Quel est le cycle de vie d'un message flash ?
 + Défini lors du POST, lu puis supprimé lors du GET suivant
@@ -475,45 +532,6 @@ Q: Que stocke-t-on dans la session à la connexion ?
 - Toutes les données du compte, pour éviter d'interroger la base
 ? Les informations susceptibles de changer (rôle, droits) se vérifient côté serveur à chaque action sensible.
 
-Q: Pourquoi random_bytes plutôt que rand() ou mt_rand() pour un jeton CSRF ?
-+ Source aléatoire cryptographiquement sûre, donc imprévisible
-- Elle est nettement plus rapide que mt_rand sur de gros volumes
-- Elle retourne des nombres plus petits, donc plus faciles à stocker
-- rand() a été totalement supprimée de PHP depuis la version 8
-? rand/mt_rand sont prévisibles : inacceptables pour la sécurité. random_bytes(32) + bin2hex donne 64 caractères hexadécimaux.
-
-Q: Pourquoi comparer des jetons avec hash_equals plutôt qu'avec === ?
-+ Comparaison en temps constant : elle résiste aux mesures de temps
-- Elle ignore la différence entre majuscules et minuscules
-- Elle convertit les jetons en nombres avant comparaison
-- Elle est nettement plus rapide que l'opérateur === classique
-? Une comparaison classique s'arrête au premier caractère différent : le temps de réponse trahit des informations.
-
-Q: Qu'est-ce qu'une attaque CSRF ?
-+ Un site tiers déclenche une action à l'insu d'un utilisateur connecté
-- Un script injecté dans la page lit le cookie de session et l'exfiltre
-- Un attaquant devine un mot de passe par une série d'essais automatisés
-- Une saisie utilisateur modifie le sens d'une requête SQL en cours
-? Le navigateur joint automatiquement le cookie de session à toute requête vers le site, même provoquée depuis un autre site. Défense : jeton aléatoire en champ caché.
-
-Q: Quel statut HTTP renvoie-t-on pour un jeton CSRF absent ou invalide ?
-= 403
-? 403 Forbidden : la requête est comprise mais le traitement est refusé. On arrête aussi le script (exit).
-
-Q: Pourquoi faire une suppression en POST plutôt que par un lien GET ?
-+ Un lien GET peut être suivi par un robot ou une image cachée
-- POST est chiffré par le navigateur alors que GET ne l'est pas
-- Un lien GET ne peut pas transporter d'identifiant de ressource
-- PHP refuse d'exécuter une suppression reçue par la méthode GET
-? Toute action qui modifie l'état se fait en POST avec jeton CSRF.
-
-Q: Masquer le bouton « Supprimer » aux non-administrateurs suffit-il à protéger l'action ?
-+ Non : l'autorisation se vérifie côté serveur à chaque action
-- Oui, à condition que le HTML de la page soit parfaitement valide
-- Oui, dès lors que la page est servie en HTTPS uniquement
-- Non, sauf si le bouton porte l'attribut disabled dans le HTML
-? Masquer n'est pas protéger : un client peut forger la requête POST sans passer par le bouton.
-
 Q: Quelles étapes composent une déconnexion complète ?
 + Vider $_SESSION
 + Supprimer le cookie de session
@@ -521,13 +539,6 @@ Q: Quelles étapes composent une déconnexion complète ?
 - Changer le mot de passe de l'utilisateur
 - Fermer la connexion à la base
 ? Puis rediriger vers une page publique, pour ne pas rester sur une page protégée.
-
-Q: Quelle paire correspond à « authentification » puis « autorisation » ?
-+ « Qui es-tu ? » puis « As-tu le droit de faire cela ? »
-- « As-tu le droit ? » puis « Qui es-tu ? »
-- « Es-tu connecté ? » puis « Es-tu en HTTPS ? »
-- « Le mot de passe est-il long ? » puis « Est-il haché ? »
-? Authentification : établir l'identité. Autorisation : contrôler l'accès, pour chaque opération protégée.
 
 Q: Quelle est la différence entre fixation de session et vol de session ? [cours]
 + Fixation : identifiant imposé avant la connexion ; vol : identifiant valide récupéré
@@ -561,6 +572,47 @@ Q: Définir $_SESSION['utilisateur_id'] prouve-t-il qu'un mot de passe a été v
 - Non, sauf si le cookie de session est marqué HttpOnly
 ? La session mémorise une identité établie lors de la connexion. Elle ne la prouve pas à elle seule.
 
+# 15
+
+Q: On saisit <img src=x onerror=alert(1)> comme nom. Quel est le résultat correct ?
++ Le texte est affiché échappé ou rejeté, mais ne s'exécute jamais
+- Une alerte s'affiche : c'est le comportement normal du navigateur
+- L'image est chargée, puis PHP la supprime de la page
+- Le serveur répond systématiquement par une erreur 500 interne
+? Le test XSS de référence : après htmlspecialchars, la balise s'affiche comme du texte (&lt;img …).
+
+Q: Pourquoi échapper aussi les données qui viennent de sa propre base de données ?
++ Une donnée enregistrée peut contenir du HTML ou du JavaScript
+- Parce que la base corrompt les accents des textes enregistrés
+- Parce que les données de la base sont toujours chiffrées
+- Ce n'est pas utile : seules les saisies du formulaire sont dangereuses
+? C'est le XSS stocké : un commentaire contenant <script> enregistré hier s'exécuterait chez tous les visiteurs aujourd'hui. Les requêtes préparées protègent le SQL, pas le HTML.
+
+Q: Pourquoi random_bytes plutôt que rand() ou mt_rand() pour un jeton CSRF ?
++ Source aléatoire cryptographiquement sûre, donc imprévisible
+- Elle est nettement plus rapide que mt_rand sur de gros volumes
+- Elle retourne des nombres plus petits, donc plus faciles à stocker
+- rand() a été totalement supprimée de PHP depuis la version 8
+? rand/mt_rand sont prévisibles : inacceptables pour la sécurité. random_bytes(32) + bin2hex donne 64 caractères hexadécimaux.
+
+Q: Pourquoi comparer des jetons avec hash_equals plutôt qu'avec === ?
++ Comparaison en temps constant : elle résiste aux mesures de temps
+- Elle ignore la différence entre majuscules et minuscules
+- Elle convertit les jetons en nombres avant comparaison
+- Elle est nettement plus rapide que l'opérateur === classique
+? Une comparaison classique s'arrête au premier caractère différent : le temps de réponse trahit des informations.
+
+Q: Qu'est-ce qu'une attaque CSRF ?
++ Un site tiers déclenche une action à l'insu d'un utilisateur connecté
+- Un script injecté dans la page lit le cookie de session et l'exfiltre
+- Un attaquant devine un mot de passe par une série d'essais automatisés
+- Une saisie utilisateur modifie le sens d'une requête SQL en cours
+? Le navigateur joint automatiquement le cookie de session à toute requête vers le site, même provoquée depuis un autre site. Défense : jeton aléatoire en champ caché.
+
+Q: Quel statut HTTP renvoie-t-on pour un jeton CSRF absent ou invalide ?
+= 403
+? 403 Forbidden : la requête est comprise mais le traitement est refusé. On arrête aussi le script (exit).
+
 Q: Avant hash_equals, que faut-il contrôler sur la valeur csrf reçue en POST ? [cours]
 + Que c'est une chaîne (is_string) : csrf[]=… est possible
 - Que sa longueur dépasse au moins cent caractères
@@ -568,7 +620,40 @@ Q: Avant hash_equals, que faut-il contrôler sur la valeur csrf reçue en POST ?
 - Qu'elle n'a encore jamais été utilisée auparavant
 ? hash_equals exige des chaînes ; un tableau provoquerait un TypeError. Une absence ou une différence doit mener à un 403.
 
-# 13
+Q: Pourquoi faire une suppression en POST plutôt que par un lien GET ?
++ Un lien GET peut être suivi par un robot ou une image cachée
+- POST est chiffré par le navigateur alors que GET ne l'est pas
+- Un lien GET ne peut pas transporter d'identifiant de ressource
+- PHP refuse d'exécuter une suppression reçue par la méthode GET
+? Toute action qui modifie l'état se fait en POST avec jeton CSRF.
+
+Q: Masquer le bouton « Supprimer » aux non-administrateurs suffit-il à protéger l'action ?
++ Non : l'autorisation se vérifie côté serveur à chaque action
+- Oui, à condition que le HTML de la page soit parfaitement valide
+- Oui, dès lors que la page est servie en HTTPS uniquement
+- Non, sauf si le bouton porte l'attribut disabled dans le HTML
+? Masquer n'est pas protéger : un client peut forger la requête POST sans passer par le bouton.
+
+Q: Le jeton CSRF est vérifié correctement avant chaque écriture. Cela suffit-il à protéger l'action ? [cours]
++ Non : il ne remplace ni l'authentification ni le contrôle des droits
+- Oui : un jeton valide prouve que l'utilisateur a le droit d'agir
+- Oui : le CSRF couvre aussi l'injection SQL et le XSS
+- Non, sauf si le jeton est régénéré à chaque seconde
+? Le jeton atteste que la requête vient d'un formulaire produit pour cette session, pas qu'elle est autorisée. L'identité et les droits se vérifient à part, côté serveur.
+
+Q: Après un POST valide et une redirection 303 (Post/Redirect/Get), un double enregistrement est-il impossible ? [cours]
++ Non : le PRG évite le renvoi au rafraîchissement, mais pas deux clics rapides
+- Oui : après la redirection, le navigateur oublie définitivement le POST
+- Oui : le code 303 empêche le serveur de traiter deux requêtes
+- Non : la redirection 303 provoque justement un second POST
+? Le PRG limite les doubles soumissions involontaires (touche F5) mais ne garantit pas seul l'unicité d'une opération : il faut en plus une contrainte d'unicité ou un contrôle côté serveur.
+
+Q: Quelle paire correspond à « authentification » puis « autorisation » ?
++ « Qui es-tu ? » puis « As-tu le droit de faire cela ? »
+- « As-tu le droit ? » puis « Qui es-tu ? »
+- « Es-tu connecté ? » puis « Es-tu en HTTPS ? »
+- « Le mot de passe est-il long ? » puis « Est-il haché ? »
+? Authentification : établir l'identité. Autorisation : contrôler l'accès, pour chaque opération protégée.
 
 Q: Quelle phrase décrit l'autorisation, par opposition à la validation et à l'échappement ?
 + Vérifier côté serveur que l'utilisateur a le droit d'agir
@@ -576,41 +661,6 @@ Q: Quelle phrase décrit l'autorisation, par opposition à la validation et à l
 - Transformer la donnée pour qu'elle soit sûre dans le HTML
 - Vérifier que le mot de passe choisi est suffisamment long
 ? Validation : forme et règles de la donnée. Autorisation : droit d'agir. Échappement : sûreté de la sortie.
-
-Q: Que doivent éviter les fonctions métier du projet CinéClub ?
-+ Lire les superglobales et produire du HTML
-- Retourner des tableaux associatifs à l'appelant
-- Recevoir des paramètres déclarés avec leur type
-- Lever des exceptions pour signaler une entrée invalide
-? Elles restent pures et testables : les superglobales sont lues à l'entrée, le HTML est produit par les pages.
-
-Q: Quel est le rôle du dossier actions/ ?
-+ Scripts POST qui traitent l'action puis redirigent, sans HTML
-- Les pages d'affichage du catalogue et de la fiche film
-- Les fichiers qui contiennent les données brutes des films
-- Les feuilles de style et les images utilisées par les pages
-? Chaque action vérifie méthode, CSRF, autorisation, validation ; elle modifie l'état, définit un flash puis redirige (PRG).
-
-Q: À quoi sert bootstrap.php ?
-+ Démarrer la session et charger le code commun, inclus en premier
-- Contenir la liste des films et leurs genres dans un tableau
-- Produire le pied de page HTML commun à toutes les pages
-- Exécuter automatiquement les tests des fonctions métier
-? Une seule initialisation commune : session, fonctions, aides comme e() pour l'échappement.
-
-Q: Comment conserver les critères de recherche dans les liens de pagination ?
-+ Avec http_build_query appliqué aux critères déjà validés
-- En les recollant à la main dans le lien, sans les encoder
-- En les stockant dans un cookie persistant valable un an
-- En les mettant dans un champ caché placé hors du lien
-? http_build_query encode correctement les valeurs et les tableaux (genres[]=…).
-
-Q: Quelle méthode HTTP utiliser pour ajouter un favori ?
-+ POST avec jeton CSRF, car l'action modifie l'état
-- GET via un simple lien, plus facile à tester à la main
-- GET avec le jeton CSRF placé dans la query string
-- Indifféremment GET ou POST, selon le goût du développeur
-? Les liens GET peuvent être déclenchés par des robots ou des images cachées.
 
 Q: Un attaquant envoie role=admin dans un formulaire. Quelle notion le bloque ?
 + L'autorisation : le rôle est relu côté serveur
@@ -627,26 +677,124 @@ Q: Que peut contenir un journal d'actions raisonnable ?
 ? Un journal ne doit contenir aucune donnée sensible.
 
 Q: Pourquoi lance-t-on le serveur avec « php -S localhost:8000 -t public » ?
-+ Seul public/ est exposé : functions.php et data/ restent protégés
++ Seul public/ est exposé : le code et les données restent hors d'atteinte
 - Pour activer le chiffrement HTTPS sur le serveur intégré
 - Pour accélérer l'exécution de PHP en mettant le code en cache
 - Pour activer automatiquement la gestion des sessions PHP
-? Moins il y a de fichiers directement accessibles, moins il y a de surface d'attaque.
+? Moins il y a de fichiers directement accessibles, moins il y a de surface d'attaque : src/, la configuration et les données ne doivent pas pouvoir être téléchargés.
 
-Q: Comment s'appelle le motif « traiter le POST, rediriger en 303, afficher en GET » ? (sigle ou nom complet)
-= PRG | Post/Redirect/Get | Post-Redirect-Get
-? Post/Redirect/Get : après le traitement, la redirection 303 mène à une page GET ; un rafraîchissement ne renvoie donc pas le formulaire.
+Q: Quelle est la différence entre hachage et chiffrement des mots de passe ? [cours]
++ Le hachage n'est pas fait pour être inversé ; le chiffrement se déchiffre avec une clé
+- Le hachage est réversible avec une clé, le chiffrement ne l'est pas
+- Les deux sont réversibles, mais le hachage est plus rapide
+- Il n'y a aucune différence : ce sont deux noms d'une même technique
+? On compare un mot de passe à son condensat (password_verify) sans jamais le retrouver.
 
-Q: Pourquoi le tri du catalogue est-il choisi dans une liste blanche ?
-+ Pour ne jamais accepter un tri arbitraire envoyé par le client
-- Pour que le tri s'exécute plus rapidement sur de gros volumes
-- Pour éviter d'avoir à utiliser la fonction usort ensuite
-- Parce que PHP ne sait pas trier plus de trois colonnes à la fois
-? La valeur reçue est comparée à un ensemble de choix connus (titre, annee, note) avec une valeur par défaut.
+Q: Que donnent deux appels à password_hash() avec le même mot de passe ? [cours]
++ Deux chaînes différentes, car un sel aléatoire est inclus à chaque appel
+- La même chaîne, car l'algorithme est déterministe
+- Une chaîne vide au deuxième appel, car le sel est déjà utilisé
+- Une exception signalant que le mot de passe est déjà haché
+? Le sel est géré automatiquement et inclus dans la chaîne résultante : pas besoin de le stocker à part.
 
-Q: Que doit afficher le catalogue quand aucun film ne correspond aux critères ?
-+ Un état « aucun résultat » clair, pas une erreur
-- Une page blanche, sans aucun message d'explication
-- Une page d'erreur 404 renvoyée par le serveur
-- Tous les films du catalogue, en ignorant les filtres
-? Un résultat vide est un cas normal, à traiter proprement.
+Q: Pourquoi password_hash plutôt que md5 ou sha1 pour stocker un mot de passe ?
++ md5 et sha1 sont rapides à calculer : trop faciles à attaquer par force brute
+- md5 et sha1 ne produisent pas de chaîne utilisable en base
+- password_hash produit toujours des chaînes plus courtes
+- md5 et sha1 sont supprimées de PHP 8
+? password_hash utilise un algorithme adapté (lent, salé, évolutif) via PASSWORD_DEFAULT. Ne jamais inventer son propre algorithme.
+
+Q: À quoi sert password_verify() ?
++ À comparer un mot de passe en clair avec le hash stocké
+- À recalculer le hash puis le comparer à la main avec ===
+- À déchiffrer le hash pour retrouver le mot de passe
+- À vérifier que le mot de passe respecte la politique de longueur
+? Elle extrait le sel du hash et recalcule. Ne jamais comparer manuellement.
+
+Q: Pourquoi le mot de passe est-il stocké dans une colonne VARCHAR(255) sous forme de hash ?
++ Le hash généré est long, et le mot de passe en clair ne se stocke jamais
+- Le hash est court, mais PHP exige 255 caractères au minimum
+- Le mot de passe en clair doit rester lisible pour permettre sa récupération
+- Une colonne de 255 caractères accélère toutes les connexions des utilisateurs
+? password_hash(PASSWORD_DEFAULT) produit une chaîne qui peut s'allonger quand PHP change d'algorithme : on prévoit 255 caractères.
+
+Q: Pourquoi afficher le même message pour un email inconnu et un mot de passe faux ?
++ Pour ne pas révéler quels comptes existent (énumération de comptes)
+- Pour économiser une requête SQL lors de chaque tentative
+- Parce que PHP ne distingue pas ces deux cas
+- Pour que l'utilisateur oublie moins souvent son mot de passe
+? « Identifiant ou mot de passe incorrect. » Dire « email inconnu » aiderait un attaquant à lister les comptes valides.
+
+Q: À quoi sert password_needs_rehash() ? [cours]
++ À détecter un hash obsolète, pour le renouveler après une connexion réussie
+- À vérifier que l'utilisateur a bien saisi son mot de passe
+- À hacher une seconde fois le mot de passe pour le renforcer
+- À migrer toute la base vers un nouvel algorithme en une fois
+? Quand PHP change d'algorithme par défaut ou de coût, on renouvelle progressivement les condensats, sans migration de masse.
+
+Q: Quelle est la différence entre les statuts 401 et 403 ?
++ 401 : identité manquante ; 403 : identifié mais accès interdit
+- 401 : accès interdit ; 403 : identité manquante
+- 401 : ressource absente ; 403 : requête mal formée
+- 401 : erreur serveur ; 403 : erreur du navigateur
+? Authentification (qui ?) → 401. Autorisation (as-tu le droit ?) → 403. Un jeton CSRF invalide donne aussi un 403.
+
+Q: Un membre peut consulter la réservation d'un autre en changeant ?id= dans l'URL. Comment s'appelle ce défaut et quelle correction ?
++ Accès horizontal (IDOR) : filtrer par propriétaire, WHERE id = :id AND utilisateur_id = :moi
+- Élévation de rôle : relire le rôle de l'utilisateur dans le cookie
+- Injection SQL : échapper l'identifiant avec htmlspecialchars
+- Fixation de session : régénérer l'identifiant à chaque page
+? L'identifiant seul ne suffit jamais à autoriser : on vérifie que la ressource appartient à l'utilisateur connecté.
+
+Q: Pourquoi relire le rôle en base à chaque contrôle sensible ?
++ Modifier un cookie, l'URL ou un champ caché ne doit accorder aucun droit
+- Pour économiser de la mémoire dans la session
+- Parce que la session expire à chaque requête
+- Parce que le rôle change à chaque connexion
+? La session ne contient que l'identifiant utilisateur ; le rôle est une donnée serveur, relue depuis la base.
+
+Q: Quelle paire « menace → défense » est correcte ?
++ Requête forgée → jeton CSRF vérifié avec hash_equals
+- Injection SQL → htmlspecialchars appliqué à la valeur
+- XSS → requête préparée utilisée dans le repository
+- Fuite de mots de passe → contrôle du jeton CSRF
+? Défense en profondeur : valider les entrées, autoriser, CSRF, requêtes préparées, échapper la sortie, hacher les secrets. Chaque mécanisme répond à une menace différente.
+
+Q: Quelle notion correspond à « le serveur vérifie la preuve : le mot de passe comparé à son condensat » ? [cours]
++ L'authentification
+- L'identification
+- L'autorisation
+- La session
+? Identification : « je prétends être… ». Authentification : preuve. Session : mémoire. Autorisation : droits. Ne confondez jamais « connecté » et « autorisé à modifier cette ressource ».
+
+Q: Quel est l'intérêt de limiter les tentatives de connexion ?
++ Ralentir les attaques par force brute (délai progressif, blocage temporaire)
+- Empêcher l'injection SQL dans le formulaire de connexion
+- Éviter la fixation de session après connexion
+- Chiffrer le mot de passe pendant sa saisie
+? Un compteur d'échecs par compte ou par IP, avec journalisation sans mot de passe.
+
+Q: Que penser d'une politique « 8 caractères, une majuscule, un chiffre, un symbole » ?
++ L'argument solide est la longueur ; l'accumulation de règles arbitraires est peu utile
+- Elle est indispensable pour que password_hash fonctionne
+- Elle rend le mot de passe impossible à deviner
+- Elle remplace le hachage du mot de passe
+? Mieux vaut exiger une longueur suffisante (par exemple 12 caractères au moins) et une confirmation identique, avec une politique argumentée plutôt qu'une pile de règles.
+
+Q: Que ne faut-il jamais écrire dans un journal ?
++ Un mot de passe, même dans un message d'erreur
+- L'identifiant technique de l'utilisateur
+- L'heure de la tentative de connexion
+- Le code de statut renvoyé
+? Journaliser les anomalies (horodatage, identifiant technique), jamais le mot de passe ni le jeton.
+
+Q: Quel en-tête HTTP permet de restreindre les scripts qu'une page a le droit d'exécuter, pour limiter les dégâts d'un XSS ?
+= Content-Security-Policy | CSP
+? Exemple : Content-Security-Policy: default-src 'self'; script-src 'self' refuse les scripts en ligne et ceux d'autres domaines. C'est une défense supplémentaire, qui ne remplace pas l'échappement.
+
+Q: Pourquoi include 'pages/' . $_GET['page'] . '.php'; est-il dangereux ?
++ Le client choisit le fichier exécuté : ../ permet de sortir du dossier prévu
+- include est plus lent que require pour les fichiers de pages
+- Le nom de page apparaît dans l'URL, ce qui est interdit
+- Le fichier inclus ne peut pas lire les variables de la page
+? On n'inclut jamais un chemin construit à partir d'une saisie : on choisit dans une liste blanche (['accueil', 'contact']) ou dans une table de routage.

@@ -78,12 +78,18 @@ for ($essai = 0; $essai < 100; $essai++) {
 // ───── Petit client HTTP (une connexion par requête, cookies conservés comme dans un navigateur) ─────
 $cookies = [];
 
-/** @return array{statut: int, entetes: array<string, list<string>>, corps: string} */
-function requete(string $methode, string $chemin, array $champs = []): array
+/**
+ * @param array<string,string> $entetesEnPlus en-têtes ajoutés à la requête (If-None-Match…)
+ * @return array{statut: int, entetes: array<string, list<string>>, corps: string}
+ */
+function requete(string $methode, string $chemin, array $champs = [], array $entetesEnPlus = []): array
 {
     global $port, $cookies;
     $corps = $champs === [] ? '' : http_build_query($champs);
     $tete = "$methode $chemin HTTP/1.0\r\nHost: 127.0.0.1:$port\r\n";
+    foreach ($entetesEnPlus as $nom => $valeur) {
+        $tete .= "$nom: $valeur\r\n";
+    }
     if ($cookies !== []) {
         $tete .= 'Cookie: ' . implode('; ', array_map(static fn (string $k, string $v): string => "$k=$v", array_keys($cookies), $cookies)) . "\r\n";
     }
@@ -146,9 +152,16 @@ function controlerPage(array $r): void
 $accueil = requete('GET', '/');
 controlerPage($accueil);
 verifier('GET / : 200', $accueil['statut'], 200);
-verifier('accueil : nouveau titre', str_contains($accueil['corps'], 'Révise PHP, SQL, les API et JavaScript'), true);
-verifier('accueil : les 30 chapitres sont proposés', substr_count($accueil['corps'], 'name="chapitres[]"'), 30);
-verifier('accueil : sélections rapides présentes (masquées sans JavaScript)', str_contains($accueil['corps'], 'data-preselections hidden'), true);
+verifier('accueil : titre', str_contains($accueil['corps'], 'Apprends et révise PHP'), true);
+verifier('accueil : 20 questions par défaut', (bool) preg_match('~name="n" value="20" checked~', $accueil['corps']), true);
+verifier('accueil : les 28 chapitres sont proposés', substr_count($accueil['corps'], 'type="checkbox" name="chapitres[]"'), 28);
+verifier('accueil : partie rapide en un clic, au-dessus de la configuration', strpos($accueil['corps'], 'Partie rapide') < strpos($accueil['corps'], 'id="configurer"'), true);
+verifier('accueil : configuration en trois étapes et bouton « Commencer »', [substr_count($accueil['corps'], 'class="etape-num"'), str_contains($accueil['corps'], 'class="barre-depart"')], [3, true]);
+verifier('accueil : révision indisponible sans erreur à revoir', (bool) preg_match('~value="revision"[^>]*disabled~', $accueil['corps']), true);
+verifier('en-tête : un seul bouton de thème (passe au thème suivant)', [substr_count($accueil['corps'], 'name="theme"'), str_contains($accueil['corps'], 'name="theme" value="clair"')], [1, true]);
+verifier('accueil : mode série et minuteur proposés', [str_contains($accueil['corps'], 'value="serie"'), str_contains($accueil['corps'], 'name="chrono"')], [true, true]);
+verifier('accueil : ressources versionnées pour le cache du navigateur', (bool) preg_match('~href="/assets/style\.css\?v=[0-9a-f]+"~', $accueil['corps']), true);
+verifier('accueil : tuiles par thème (affichées par JavaScript), liste des chapitres ouverte sans JavaScript', [substr_count($accueil['corps'], 'data-tuile="'), str_contains($accueil['corps'], 'data-tuiles hidden'), str_contains($accueil['corps'], 'data-choix-chapitres open')], [6, true, true]);
 verifier('CSP : aucun script ni style en ligne autorisé', str_contains(entete($accueil, 'Content-Security-Policy'), "script-src 'self'; style-src 'self'"), true);
 verifier('en-têtes : nosniff et refus des cadres', [entete($accueil, 'X-Content-Type-Options'), entete($accueil, 'X-Frame-Options')], ['nosniff', 'DENY']);
 verifier('en-têtes : X-Powered-By retiré', entete($accueil, 'X-Powered-By'), '');
@@ -158,6 +171,11 @@ verifier('accueil : jeton CSRF présent', strlen($csrf), 64);
 
 $css = requete('GET', '/assets/style.css');
 verifier('GET /assets/style.css : 200 en text/css', [$css['statut'], str_starts_with(entete($css, 'Content-Type'), 'text/css')], [200, true]);
+verifier('ressource non versionnée : revalidée à chaque fois, avec un ETag', [entete($css, 'Cache-Control'), entete($css, 'ETag') !== ''], ['no-cache', true]);
+$cssVersionne = requete('GET', '/assets/style.css?v=1');
+verifier('ressource versionnée : gardée un an par le navigateur', entete($cssVersionne, 'Cache-Control'), 'public, max-age=31536000, immutable');
+$revalidation = requete('GET', '/assets/app.js', [], ['If-None-Match' => entete(requete('GET', '/assets/app.js'), 'ETag')]);
+verifier('ressource inchangée : 304 sans contenu', [$revalidation['statut'], $revalidation['corps']], [304, '']);
 $icone = requete('GET', '/assets/favicon.svg');
 verifier('GET /assets/favicon.svg : 200', $icone['statut'], 200);
 $traversee = requete('GET', '/assets/../src/bootstrap.php');
@@ -167,14 +185,32 @@ verifier('remontée de dossier refusée : 404, aucun code source servi', [$trave
 verifier('page inconnue : 404', requete('GET', '/nexiste-pas')['statut'], 404);
 $put = requete('PUT', '/');
 verifier('méthode non prévue : 405 avec en-tête Allow', [$put['statut'], entete($put, 'Allow')], [405, 'GET']);
-verifier('POST sans jeton CSRF : 403', requete('POST', '/partie', ['mode' => 'normal', 'n' => '5', 'chapitres' => ['27']])['statut'], 403);
-$invalide = requete('POST', '/partie', ['csrf' => $csrf, 'mode' => 'normal', 'n' => '7', 'chapitres' => ['27']]);
+verifier('POST sans jeton CSRF : 403', requete('POST', '/partie', ['mode' => 'normal', 'n' => '5', 'chapitres' => ['24']])['statut'], 403);
+$invalide = requete('POST', '/partie', ['csrf' => $csrf, 'mode' => 'normal', 'n' => '7', 'chapitres' => ['24']]);
 controlerPage($invalide);
 verifier('options invalides : 422 et formulaire réaffiché avec le message', [$invalide['statut'], str_contains($invalide['corps'], 'Choisis un nombre de questions')], [422, true]);
+$chronoInvalide = requete('POST', '/partie', ['csrf' => $csrf, 'mode' => 'normal', 'n' => '5', 'chrono' => '7', 'chapitres' => ['24']]);
+verifier('minuteur inconnu : 422', [$chronoInvalide['statut'], str_contains($chronoInvalide['corps'], 'minuteur')], [422, true]);
+
+// ───── Fiches de révision ─────
+$sommaire = requete('GET', '/fiches');
+controlerPage($sommaire);
+verifier('fiches : sommaire des 28 chapitres', [$sommaire['statut'], substr_count($sommaire['corps'], 'href="/fiches?ch=')], [200, 28]);
+$fiche = requete('GET', '/fiches?ch=08');
+controlerPage($fiche);
+verifier('fiches : un chapitre avec ses questions, réponses et explications', [$fiche['statut'], substr_count($fiche['corps'], '<details class="detail fiche"') >= 12, str_contains($fiche['corps'], 'Classes et objets')], [200, true, true]);
+$recherche = requete('GET', '/fiches?q=' . rawurlencode('password_hash'));
+controlerPage($recherche);
+verifier('fiches : recherche par mot-clé', [$recherche['statut'], str_contains($recherche['corps'], 'fiche(s) pour « password_hash »'), str_contains($recherche['corps'], '<details class="detail fiche"')], [200, true, true]);
+$piegeRecherche = requete('GET', '/fiches?q=' . rawurlencode('<script>alert(1)</script>'));
+verifier('fiches : la recherche est échappée', [$piegeRecherche['statut'], str_contains($piegeRecherche['corps'], '<script>alert(1)</script>')], [200, false]);
+verifier('fiches : chapitre inconnu ou falsifié → 404', [requete('GET', '/fiches?ch=99')['statut'], requete('GET', '/fiches?ch[]=05')['statut']], [404, 404]);
 
 // ───── Une partie complète (JavaScript), avec erreurs volontaires ─────
-$creation = requete('POST', '/partie', ['csrf' => $csrf, 'mode' => 'normal', 'n' => '5', 'chapitres' => ['27', '28', '29'], 'graine' => '2024']);
+$creation = requete('POST', '/partie', ['csrf' => $csrf, 'mode' => 'normal', 'n' => '5', 'chapitres' => ['24', '25', '26', '27'], 'graine' => '2024']);
 verifier('création de partie : 303 vers /question (Post/Redirect/Get)', [$creation['statut'], entete($creation, 'Location')], [303, '/question']);
+$sansAffichage = requete('POST', '/repondre', ['csrf' => $csrf, 'numero' => '1', 'action' => 'passer']);
+verifier('réponse envoyée sans avoir affiché la question : refusée (303 vers /question)', [$sansAffichage['statut'], entete($sansAffichage, 'Location')], [303, '/question']);
 
 $repondues = 0;
 $numeroPrecedent = null;
@@ -218,9 +254,16 @@ verifier('les 5 questions ont été traitées', $repondues, 5);
 $bilan = requete('GET', '/bilan');
 controlerPage($bilan);
 verifier('bilan : 200', $bilan['statut'], 200);
-verifier('bilan : bouton « Refaire mes erreurs »', (bool) preg_match('/Refaire mes \d+ erreurs?/', $bilan['corps']), true);
+verifier('bilan : bouton « Refaire mes erreurs »', (bool) preg_match('/Refaire (mes \d+ erreurs|mon erreur)/', $bilan['corps']), true);
 verifier('bilan : cours à relire cités', str_contains($bilan['corps'], 'Cours concernés'), true);
+verifier('bilan : prochaine étape conseillée en tête', [str_contains($bilan['corps'], 'Et maintenant ?'), strpos($bilan['corps'], 'Et maintenant ?') < strpos($bilan['corps'], 'Détail des questions')], [true, true]);
 verifier('historique temporaire : une partie enregistrée', count(json_decode((string) @file_get_contents($fichierHisto), true)['sessions'] ?? []), 1);
+$accueilApres = requete('GET', '/');
+verifier('accueil : les réglages de la dernière partie sont repris', [
+    (bool) preg_match('~value="24"[^>]*checked~', $accueilApres['corps']),
+    (bool) preg_match('~value="00"[^>]*checked~', $accueilApres['corps']),
+    (bool) preg_match('~name="n" value="5" checked~', $accueilApres['corps']),
+], [true, false, true]);
 
 // ───── Refaire ses erreurs ─────
 $csrf = jeton($bilan['corps']) ?: $csrf;
@@ -238,11 +281,42 @@ controlerPage($bilanRattrapage);
 verifier('bilan du rattrapage : origine indiquée', str_contains($bilanRattrapage['corps'], 'rattrapage des erreurs de la partie n°1'), true);
 verifier('historique temporaire : deux parties enregistrées', count(json_decode((string) @file_get_contents($fichierHisto), true)['sessions'] ?? []), 2);
 
+// ───── Minuteur : à zéro, la réponse part avec action=temps et compte comme une erreur ─────
+requete('POST', '/partie', ['csrf' => $csrf, 'mode' => 'normal', 'n' => '5', 'chrono' => '15', 'chapitres' => ['01', '02'], 'graine' => '77']);
+$questionChrono = requete('GET', '/question');
+controlerPage($questionChrono);
+verifier('minuteur : affiché avec sa durée', [str_contains($questionChrono['corps'], 'data-chrono'), str_contains($questionChrono['corps'], 'data-limite="15"')], [true, true]);
+preg_match('/name="numero" value="(\d+)"/', $questionChrono['corps'], $m);
+$tempsEcoule = requete('POST', '/repondre', ['csrf' => $csrf, 'numero' => $m[1] ?? '1', 'action' => 'temps']);
+verifier('minuteur à zéro : réponse enregistrée, puis correction', [$tempsEcoule['statut'], entete($tempsEcoule, 'Location')], [303, '/correction']);
+$correctionTemps = requete('GET', '/correction');
+controlerPage($correctionTemps);
+verifier('correction : verdict « Temps écoulé »', [$correctionTemps['statut'], str_contains($correctionTemps['corps'], 'Temps écoulé')], [200, true]);
+requete('POST', '/abandonner', ['csrf' => $csrf]);
+$bilanTemps = requete('GET', '/bilan');
+controlerPage($bilanTemps);
+verifier('bilan : la réponse hors délai est comptée', (bool) preg_match('~<strong>1</strong> hors délai~', $bilanTemps['corps']), true);
+
+// ───── Mode série : la partie s'arrête à la première réponse qui n'est pas juste ─────
+requete('POST', '/partie', ['csrf' => $csrf, 'mode' => 'serie', 'n' => '15', 'chapitres' => ['08', '09'], 'graine' => '88']);
+$questionSerie = requete('GET', '/question');
+controlerPage($questionSerie);
+verifier('série : compteur affiché, pas de bouton « Passer »', [str_contains($questionSerie['corps'], 'Bonnes réponses : 0'), str_contains($questionSerie['corps'], 'value="passer"')], [true, false]);
+preg_match('/name="numero" value="(\d+)"/', $questionSerie['corps'], $m);
+$finSerie = requete('POST', '/repondre', ['csrf' => $csrf, 'numero' => $m[1] ?? '1', 'action' => 'passer']);
+verifier('série : terminée dès la première réponse non juste', entete($finSerie, 'Location'), '/correction');
+$bilanSerie = requete('GET', '/bilan');
+controlerPage($bilanSerie);
+verifier('série : bilan de la série et bouton « Nouvelle série »', [$bilanSerie['statut'], str_contains($bilanSerie['corps'], 'Bilan de la série'), str_contains($bilanSerie['corps'], 'Nouvelle série')], [200, true, true]);
+$sessionsEnregistrees = json_decode((string) @file_get_contents($fichierHisto), true)['sessions'] ?? [];
+verifier('historique : mode et minuteur enregistrés avec chaque partie', [count($sessionsEnregistrees), $sessionsEnregistrees[2]['chrono'] ?? null, $sessionsEnregistrees[3]['mode'] ?? null], [4, 15, 'serie']);
+
 // ───── Statistiques, sources, thème ─────
 $stats = requete('GET', '/stats');
 controlerPage($stats);
 verifier('statistiques : 200 avec le graphique de progression', [$stats['statut'], substr_count($stats['corps'], 'class="graphe-svg')], [200, 2]);
 verifier('statistiques : tableau des parties (équivalent accessible du graphique)', str_contains($stats['corps'], 'Détail des parties (tableau)'), true);
+verifier('statistiques : record de série et temps moyen', [str_contains($stats['corps'], 'bonnes réponses d\'affilée (record)'), str_contains($stats['corps'], 'Temps moyen par réponse')], [true, true]);
 $sources = requete('GET', '/sources');
 controlerPage($sources);
 verifier('sources : 200, auteur et licence cités', [$sources['statut'], str_contains($sources['corps'], 'Térence FERUT'), str_contains($sources['corps'], 'CC BY-SA 4.0')], [200, true, true]);
@@ -253,6 +327,13 @@ $ouverte = requete('POST', '/theme', ['csrf' => $csrf, 'theme' => 'clair', 'reto
 verifier('thème : pas de redirection ouverte vers un autre site', entete($ouverte, 'Location'), '/');
 verifier('thème inconnu : 400', requete('POST', '/theme', ['csrf' => $csrf, 'theme' => 'rose'])['statut'], 400);
 verifier('le thème choisi est appliqué', str_contains(requete('GET', '/sources')['corps'], 'data-theme="clair"'), true);
+
+// ───── Partie rapide : un préréglage qui ne remplace pas les réglages par défaut de l'accueil ─────
+$champsRapides = ['csrf' => $csrf, 'mode' => 'normal', 'n' => '10', 'chrono' => '0', 'rapide' => '1', 'chapitres' => array_map(static fn (int $i): string => sprintf('%02d', $i), range(0, 27))];
+$rapide = requete('POST', '/partie', $champsRapides);
+verifier('partie rapide : 303 vers /question', [$rapide['statut'], entete($rapide, 'Location')], [303, '/question']);
+$accueilRapide = requete('GET', '/');
+verifier('partie rapide : l\'accueil propose « Reprendre » et garde 20 questions par défaut', [str_contains($accueilRapide['corps'], 'Reprendre ma partie'), (bool) preg_match('~name="n" value="20" checked~', $accueilRapide['corps'])], [true, true]);
 
 // ───── Bilan global ─────
 verifier("aucun style ni script en ligne dans les $pagesVues pages HTML visitées", $pagesSansEnLigne, $pagesVues);

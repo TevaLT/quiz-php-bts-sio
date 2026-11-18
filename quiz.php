@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 /**
- * Quiz BTS SIO SLAM — PHP, bases de données, MVC, API REST, JWT et JavaScript.
+ * Quiz BTS SIO SLAM — apprendre PHP (bases, objet, web, PDO, MVC, API REST, JWT) et JavaScript.
  *
  *   php quiz.php                 menu interactif
  *   php quiz.php --n=20          20 questions aléatoires sur tout le programme
+ *   php quiz.php --chrono=30     30 secondes par question
+ *   php quiz.php --serie         jusqu'à la première erreur
  *   php quiz.php --aide          toutes les options
  *
  * Chaque session tire des questions DIFFÉRENTES :
@@ -117,7 +119,7 @@ function afficherEnonce(array $q, int $num, int $total): void
         default => 'choix unique',
     };
     Terminal::ligne();
-    Terminal::regle(sprintf('Question %d/%d · Ch. %s %s · %s', $num, $total, $q['ch'], $titre, $type));
+    Terminal::regle(sprintf('Question %s · Ch. %s %s · %s', $total > 0 ? "$num/$total" : (string) $num, $q['ch'], $titre, $type));
     foreach ($q['q'] as $seg) {
         Terminal::ligne($seg['code'] ? '    ' . Terminal::style($seg['t'], 'cyan') : Terminal::style($seg['t'], 'gras'));
     }
@@ -127,11 +129,14 @@ function afficherEnonce(array $q, int $num, int $total): void
 }
 
 /**
- * Pose une question et renvoie ['statut' => ok|ko|passee|quitter, 'reponse' => string].
+ * Pose une question et renvoie ['statut' => ok|ko|passee|temps|quitter, 'reponse' => string, 'duree' => float].
  *
- * @return array{statut:string, reponse:string, question:array<string,mixed>}
+ * Avec un minuteur ($chrono secondes), le terminal ne peut pas interrompre la saisie : le temps est mesuré, et une
+ * réponse donnée après la limite (plus la marge TOLERANCE_CHRONO) est comptée « temps écoulé ».
+ *
+ * @return array{statut:string, reponse:string, question:array<string,mixed>, duree:float}
  */
-function poser(array $q, int $num, int $total, bool $examen): array
+function poser(array $q, int $num, int $total, bool $examen, int $chrono = 0): array
 {
     if ($q['type'] !== 'saisie') {
         $q['choix'] = melanger($q['choix']);
@@ -145,32 +150,42 @@ function poser(array $q, int $num, int $total, bool $examen): array
     } elseif ($q['indice'] !== '') {
         Terminal::ligne(Terminal::style('  (' . $q['indice'] . ')', 'pale'));
     }
+    if ($chrono > 0) {
+        Terminal::ligne(Terminal::style("  ({$chrono} s pour répondre)", 'pale'));
+    }
 
     $nbChoix = count($q['choix']);
     $aide = $q['type'] === 'saisie' ? '/s = passer, /q = quitter' : 's = passer, q = quitter';
+    $debut = microtime(true);
+    $fin = static function (array $q, string $statut, string $reponse) use ($examen, $chrono, $debut): array {
+        $duree = round(microtime(true) - $debut, 1);
+        if ($chrono > 0 && $duree > $chrono + TOLERANCE_CHRONO && in_array($statut, ['ok', 'ko'], true)) {
+            Terminal::ligne(Terminal::style(sprintf('  Temps écoulé : %s s pour %d s autorisées, la réponse ne compte pas.', number_format($duree, 1, ',', ''), $chrono), 'rouge'));
+            $statut = 'temps';
+        }
+        retour($q, $statut, $reponse, $examen);
+
+        return ['statut' => $statut, 'reponse' => $reponse, 'question' => $q, 'duree' => $duree];
+    };
     while (true) {
         $saisie = Terminal::lire(Terminal::symbole('fleche') . " Ta réponse ($aide) :");
         if ($saisie === null) {
-            return ['statut' => 'quitter', 'reponse' => '', 'question' => $q];
+            return ['statut' => 'quitter', 'reponse' => '', 'question' => $q, 'duree' => 0.0];
         }
         $commande = mb_strtolower($saisie);
         if ($commande === '/q' || ($q['type'] !== 'saisie' && $commande === 'q')) {
-            return ['statut' => 'quitter', 'reponse' => '', 'question' => $q];
+            return ['statut' => 'quitter', 'reponse' => '', 'question' => $q, 'duree' => 0.0];
         }
         if ($commande === '/s' || ($q['type'] !== 'saisie' && $commande === 's')) {
-            retour($q, 'passee', '', $examen);
-
-            return ['statut' => 'passee', 'reponse' => '', 'question' => $q];
+            return $fin($q, 'passee', '');
         }
 
         if ($q['type'] === 'saisie') {
             if ($saisie === '') {
                 continue;
             }
-            $ok = reponseLibreCorrecte($saisie, $q['acceptees']);
-            retour($q, $ok ? 'ok' : 'ko', $saisie, $examen);
 
-            return ['statut' => $ok ? 'ok' : 'ko', 'reponse' => $saisie, 'question' => $q];
+            return $fin($q, reponseLibreCorrecte($saisie, $q['acceptees']) ? 'ok' : 'ko', $saisie);
         }
 
         $lettres = array_unique(str_split((string) preg_replace('/[^A-Z]/', '', strtoupper($saisie))));
@@ -190,11 +205,9 @@ function poser(array $q, int $num, int $total, bool $examen): array
             $donnees[] = ord($L) - ord('A');
         }
         sort($donnees);
-        $ok = evaluerChoix($q, $donnees);
         $q['choisies'] = $donnees;
-        retour($q, $ok ? 'ok' : 'ko', implode(',', array_map('lettre', $donnees)), $examen);
 
-        return ['statut' => $ok ? 'ok' : 'ko', 'reponse' => implode(',', array_map('lettre', $donnees)), 'question' => $q];
+        return $fin($q, evaluerChoix($q, $donnees) ? 'ok' : 'ko', implode(',', array_map('lettre', $donnees)));
     }
 }
 
@@ -209,6 +222,8 @@ function retour(array $q, string $statut, string $saisie, bool $examen): void
         Terminal::ligne(Terminal::style('  ' . Terminal::symbole('ok') . ' Bonne réponse !', 'vert', 'gras'));
     } elseif ($statut === 'passee') {
         Terminal::ligne(Terminal::style('  ' . Terminal::symbole('puce') . ' Question passée.', 'jaune'));
+    } elseif ($statut === 'temps') {
+        Terminal::ligne(Terminal::style('  ' . Terminal::symbole('ko') . ' Hors délai.', 'rouge', 'gras'));
     } else {
         Terminal::ligne(Terminal::style('  ' . Terminal::symbole('ko') . ' Raté.', 'rouge', 'gras'));
         if ($q['type'] === 'multi' && isset($q['choisies'])) {
@@ -282,6 +297,15 @@ function bilan(array $resultats, bool $examen, int $graine, int $numSession): vo
     Terminal::ligne(Terminal::style(sprintf('Score : %d / %d  (%d %%)  —  %s / 20', $ok, $total, $pct, number_format($note, 1, ',', '')), 'gras', $couleur));
     $mots = $pct >= 90 ? 'Excellent, tu maîtrises !' : ($pct >= 70 ? 'Très bien, continue !' : ($pct >= 50 ? 'Correct, mais il reste des zones à consolider.' : 'Pas de panique : relis les chapitres signalés puis relance une session.'));
     Terminal::ligne($mots);
+    $statuts = array_column($repondues, 'statut');
+    $horsDelai = count(array_filter($statuts, static fn (string $s): bool => $s === 'temps'));
+    $durees = array_column($repondues, 'duree');
+    Terminal::ligne(sprintf(
+        'Meilleure série : %d bonne(s) réponse(s) d\'affilée%s%s',
+        meilleureSerie($statuts),
+        $horsDelai > 0 ? " · $horsDelai hors délai" : '',
+        $durees === [] ? '' : ' · temps moyen : ' . number_format(array_sum($durees) / count($durees), 1, ',', '') . ' s'
+    ));
 
     // Détail par chapitre
     $parChap = [];
@@ -484,17 +508,20 @@ function verifierBanque(array $statiques, array $erreurs, array $generateurs): i
 
 function aide(): void
 {
+    $defaut = NOMBRE_QUESTIONS_DEFAUT;
     echo <<<TXT
     Quiz BTS SIO SLAM — PHP, bases de données, MVC, API REST, JWT et JavaScript
 
     Usage : php quiz.php [options]
 
       (sans option)        menu interactif
-      --n=15               nombre de questions (défaut 15)
-      --chap=03,09-12      limiter à certains chapitres (listes et intervalles, 00 à 29)
-      --bloc=2             1 bases · 2 web · 3 bases de données · 4 outils et API · 5 JavaScript
+      --n={$defaut}               nombre de questions (défaut {$defaut})
+      --chap=03,12-15      limiter à certains chapitres (listes et intervalles, 00 à 27)
+      --bloc=2             1 bases · 2 objet · 3 web · 4 données · 5 architecture et API · 6 JavaScript
       --cours              uniquement les questions tirées des cours (étiquette [cours])
       --examen             pas de correction pendant la session, bilan à la fin
+      --serie              enchaîne les questions jusqu'à la première erreur (50 au plus)
+      --chrono=30          secondes accordées par question (réponse hors délai = fausse)
       --revision           rejoue uniquement les questions ratées auparavant
       --stats              affiche tes statistiques
       --reset              efface l'historique (demande confirmation)
@@ -534,14 +561,14 @@ function analyserChapitres(string $spec): array
 function analyserArguments(array $argv): array
 {
     $o = ['n' => null, 'chap' => null, 'bloc' => null, 'cours' => false, 'examen' => false, 'revision' => false,
-        'stats' => false, 'reset' => false, 'graine' => null, 'verifier' => false, 'sansCouleur' => false,
-        'ascii' => false, 'aide' => false, 'args' => count($argv) > 1];
+        'serie' => false, 'chrono' => null, 'stats' => false, 'reset' => false, 'graine' => null, 'verifier' => false,
+        'sansCouleur' => false, 'ascii' => false, 'aide' => false, 'args' => count($argv) > 1];
     foreach (array_slice($argv, 1) as $a) {
-        if (preg_match('/^--(n|chap|bloc|graine)=(.+)$/', $a, $m) === 1) {
+        if (preg_match('/^--(n|chap|bloc|graine|chrono)=(.+)$/', $a, $m) === 1) {
             $o[$m[1]] = $m[2];
         } else {
             $cle = match ($a) {
-                '--cours' => 'cours', '--examen' => 'examen', '--revision' => 'revision', '--stats' => 'stats',
+                '--cours' => 'cours', '--examen' => 'examen', '--revision' => 'revision', '--serie' => 'serie', '--stats' => 'stats',
                 '--reset' => 'reset', '--verifier' => 'verifier', '--sans-couleur' => 'sansCouleur',
                 '--ascii' => 'ascii', '--aide', '--help', '-h' => 'aide',
                 default => null,
@@ -565,12 +592,14 @@ function menu(array &$o, array $histo, array $statiques): bool
     Terminal::ligne();
     Terminal::ligne(Terminal::style('  QUIZ BTS SIO SLAM', 'gras', 'cyan') . Terminal::style(sprintf('  ·  %d questions + générateurs  ·  %d session(s) déjà jouée(s)', count($statiques), count($histo['sessions'])), 'pale'));
     Terminal::ligne();
+    $record = meilleureSerieHistorique($histo);
     Terminal::ligne('   1) Session aléatoire sur tout le programme');
     Terminal::ligne('   2) Choisir les chapitres');
     Terminal::ligne('   3) Mode examen (correction à la fin)');
-    Terminal::ligne("   4) Réviser mes erreurs ($aRevoir à revoir)");
-    Terminal::ligne('   5) Uniquement les questions tirées des cours');
-    Terminal::ligne('   6) Mes statistiques');
+    Terminal::ligne('   4) Mode série : jusqu\'à la première erreur' . ($record > 0 ? " (record : $record)" : ''));
+    Terminal::ligne("   5) Réviser mes erreurs ($aRevoir à revoir)");
+    Terminal::ligne('   6) Uniquement les questions tirées des cours');
+    Terminal::ligne('   7) Mes statistiques');
     Terminal::ligne('   q) Quitter');
     Terminal::ligne();
     $choix = Terminal::lire('Ton choix [1] :');
@@ -579,9 +608,9 @@ function menu(array &$o, array $histo, array $statiques): bool
     }
     switch ($choix === '' ? '1' : $choix) {
         case '2':
-            Terminal::ligne(Terminal::style('  Blocs : 1 bases (00-08) · 2 web (09-13) · 3 bases de données (14-18) · 4 outils et API (19-26) · 5 JavaScript (27-29)', 'pale'));
-            $spec = Terminal::lire('Chapitres (ex : 03,09-12) ou bloc (ex : b2) :');
-            if ($spec !== null && preg_match('/^b([1-5])$/i', $spec, $m) === 1) {
+            Terminal::ligne(Terminal::style('  Blocs : b1 bases (00-07) · b2 objet (08-11) · b3 web (12-15) · b4 données (16-19) · b5 architecture et API (20-23) · b6 JavaScript (24-27)', 'pale'));
+            $spec = Terminal::lire('Chapitres (ex : 03,12-15) ou bloc (ex : b2) :');
+            if ($spec !== null && preg_match('/^b([1-6])$/i', $spec, $m) === 1) {
                 $o['bloc'] = $m[1];
             } elseif ($spec !== null && $spec !== '') {
                 $o['chap'] = $spec;
@@ -591,19 +620,28 @@ function menu(array &$o, array $histo, array $statiques): bool
             $o['examen'] = true;
             break;
         case '4':
-            $o['revision'] = true;
+            $o['serie'] = true;
             break;
         case '5':
-            $o['cours'] = true;
+            $o['revision'] = true;
             break;
         case '6':
+            $o['cours'] = true;
+            break;
+        case '7':
             $o['stats'] = true;
 
             return true;
     }
-    $n = Terminal::lire('Combien de questions ? [15] :');
-    if ($n !== null && ctype_digit($n) && (int) $n > 0) {
-        $o['n'] = $n;
+    if (!$o['serie']) {
+        $n = Terminal::lire('Combien de questions ? [' . NOMBRE_QUESTIONS_DEFAUT . '] :');
+        if ($n !== null && ctype_digit($n) && (int) $n > 0) {
+            $o['n'] = $n;
+        }
+    }
+    $chrono = Terminal::lire('Minuteur en secondes par question (Entrée = sans minuteur) :');
+    if ($chrono !== null && ctype_digit($chrono) && (int) $chrono > 0) {
+        $o['chrono'] = $chrono;
     }
 
     return true;
@@ -659,12 +697,14 @@ if ($o['bloc'] !== null && isset(BLOCS[(int) $o['bloc']])) {
     $chapitres = chapitresDuBloc((int) $o['bloc']);
 }
 if ($chapitres !== null && $chapitres === []) {
-    fwrite(STDERR, "Aucun chapitre valide dans --chap (attendu : 00 à 29, ex : 03,09-12).\n");
+    fwrite(STDERR, "Aucun chapitre valide dans --chap (attendu : 00 à 27, ex : 03,12-15).\n");
     exit(2);
 }
 [$statiques, $generateurs] = filtrerBanque($statiques, $generateurs, $chapitres, (bool) $o['cours']);
 
-$n = $o['n'] !== null && ctype_digit((string) $o['n']) ? max(1, (int) $o['n']) : 15;
+$serie = (bool) $o['serie'] && !$o['revision'];
+$chrono = $o['chrono'] !== null && ctype_digit((string) $o['chrono']) ? min(600, (int) $o['chrono']) : 0;
+$n = $o['n'] !== null && ctype_digit((string) $o['n']) ? max(1, (int) $o['n']) : ($serie ? SERIE_MAX : NOMBRE_QUESTIONS_DEFAUT);
 $graine = $o['graine'] !== null && ctype_digit((string) $o['graine']) ? (int) $o['graine'] : random_int(1, 2147483646);
 initialiserAlea($graine);
 $numSession = count($histo['sessions']) + 1;
@@ -679,17 +719,18 @@ if ($selection === []) {
 
 Terminal::ligne();
 Terminal::ligne(Terminal::style(sprintf(
-    'Session n°%d · %d question(s) · %s',
+    'Session n°%d · %s · %s%s',
     $numSession,
-    count($selection),
-    $o['examen'] ? 'mode examen' : ($o['revision'] ? 'révision des erreurs' : 'correction immédiate')
+    $serie ? 'série : jusqu\'à la première erreur' : count($selection) . ' question(s)',
+    $o['examen'] ? 'mode examen' : ($o['revision'] ? 'révision des erreurs' : 'correction immédiate'),
+    $chrono > 0 ? " · $chrono s par question" : ''
 ), 'gras', 'cyan'));
 
 $resultats = [];
 foreach ($selection as $i => $q) {
-    $r = poser($q, $i + 1, count($selection), (bool) $o['examen']);
+    $r = poser($q, $i + 1, $serie ? 0 : count($selection), (bool) $o['examen'], $chrono);
     $resultats[] = $r;
-    if ($r['statut'] === 'quitter') {
+    if ($r['statut'] === 'quitter' || ($serie && $r['statut'] !== 'ok')) {
         break;
     }
 }
@@ -697,4 +738,10 @@ foreach ($selection as $i => $q) {
 bilan($resultats, (bool) $o['examen'], $graine, $numSession);
 
 // Enregistrement de l'historique (sous verrou, via le moteur partagé)
-modifierHistorique(static fn (array $h): array => appliquerResultats($h, $resultats, $graine));
+$repondues = array_values(array_filter($resultats, static fn (array $r): bool => $r['statut'] !== 'quitter'));
+$infos = [
+    'mode' => $serie ? 'serie' : ($o['examen'] ? 'examen' : ($o['revision'] ? 'revision' : 'normal')),
+    'chrono' => $chrono,
+    'duree_moyenne' => $repondues === [] ? null : round(array_sum(array_column($repondues, 'duree')) / count($repondues), 1),
+];
+modifierHistorique(static fn (array $h): array => appliquerResultats($h, $resultats, $graine, $infos));

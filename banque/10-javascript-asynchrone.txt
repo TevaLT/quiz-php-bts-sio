@@ -1,0 +1,130 @@
+// Banque de questions — chapitre 27 : JavaScript asynchrone (promesses, async/await, fetch et API PHP)
+// Format : voir banque/README.md
+
+# 27
+
+Q: Que renvoie immédiatement l'appel fetch('/api/produits') ?
++ Une promesse (Promise), qui se résoudra plus tard avec un objet Response
+- Le corps de la réponse, déjà décodé en JSON
+- Le code de statut HTTP de la réponse, par exemple 200
+- undefined, car la réponse n'est pas encore arrivée
+? fetch lance la requête et rend la main tout de suite. On récupère la réponse avec await fetch(…) dans une fonction async, ou avec .then(…).
+
+Q: Le serveur répond 404 à un fetch. La promesse est-elle rejetée ?
++ Non : seule une erreur réseau la rejette, il faut tester response.ok
+- Oui : tout statut différent de 200 rejette la promesse
+- Oui, mais seulement pour les statuts 500 et plus
+- Non, et response.ok vaut quand même true
+? Une réponse HTTP, même 404 ou 500, est une réponse reçue. On écrit : if (!response.ok) { throw new Error(`HTTP ${response.status}`); }.
+
+Q: Que vaut response.ok quand le serveur répond 201 Created ?
++ true : ok est vrai pour tous les statuts de 200 à 299
+- false : ok n'est vrai que pour le statut 200 exactement
+- undefined : ok n'existe que pour les requêtes GET
+- 201 : ok contient le code de statut reçu
+? response.status donne le code exact ; response.ok résume « succès 2xx ».
+
+Q: Que renvoie response.json() ?
++ Une promesse du corps décodé, qu'il faut attendre avec await
+- Directement l'objet JavaScript décodé, sans attente
+- La chaîne JSON brute, à passer ensuite à JSON.parse
+- true si le corps est du JSON valide, false sinon
+? Le corps arrive peut-être encore par morceaux : const donnees = await response.json();. Un corps qui n'est pas du JSON valide fait rejeter cette promesse.
+
+Q: Où peut-on écrire le mot-clé await ?
++ Dans une fonction déclarée async, ou au niveau principal d'un module
+- Partout, y compris dans une fonction ordinaire
+- Uniquement dans le gestionnaire d'un événement click
+- Uniquement dans un bloc try / catch
+? Dans un script classique, await hors d'une fonction async est une erreur de syntaxe. Les scripts type="module" autorisent l'await de premier niveau.
+
+Q: Que renvoie toujours une fonction déclarée async ?
++ Une promesse, même si elle contient return 5
+- La valeur de son return, sans enveloppe particulière
+- undefined, car le résultat arrive plus tard
+- Un tableau des valeurs attendues avec await
+? async function f() { return 5; } renvoie une promesse résolue avec 5 : l'appelant écrit await f() ou f().then(…).
+
+Q: Qu'affiche ce code dans la console ?
+|console.log("A");
+|setTimeout(() => console.log("B"), 0);
+|console.log("C");
+= ACB | A C B | A, C, B
+i: les lettres dans l'ordre d'affichage
+? Même avec un délai de 0, le rappel de setTimeout est placé dans une file : il attend que le code en cours soit terminé. JavaScript exécute une seule chose à la fois (boucle d'événements).
+
+Q: Qu'affiche ce code dans la console ?
+|console.log(1);
+|Promise.resolve().then(() => console.log(2));
+|setTimeout(() => console.log(3), 0);
+|console.log(4);
+= 1423 | 1 4 2 3 | 1, 4, 2, 3
+i: les chiffres dans l'ordre d'affichage
+? Le code synchrone d'abord (1, 4). Ensuite les « microtâches » (rappels de promesses : 2), puis les « macrotâches » comme setTimeout (3).
+
+Q: Comment attraper l'erreur d'un appel await fetch(…) qui échoue ?
++ Entourer l'appel d'un bloc try / catch
+- Ajouter le paramètre catch: true dans les options de fetch
+- Tester if (fetch === false) après l'appel
+- Rien : await ignore automatiquement les erreurs réseau
+? Avec await, une promesse rejetée devient une exception classique. Sans await, on enchaîne .catch(erreur => …).
+
+Q: Que fait Promise.all([p1, p2, p3]) ?
++ Il attend toutes les promesses et échoue dès que l'une d'elles est rejetée
+- Il renvoie le résultat de la première promesse terminée
+- Il exécute les promesses l'une après l'autre, dans l'ordre
+- Il ignore les promesses rejetées et garde les autres résultats
+? Les requêtes partent en parallèle ; le résultat est un tableau dans l'ordre d'origine. Promise.allSettled attend tout, échecs compris.
+
+Q: Que contient reponse après const reponse = fetch('/api/produits'); (sans await) ?
++ Une promesse en attente, pas la réponse du serveur
+- La réponse du serveur, comme avec await
+- undefined, jusqu'à l'arrivée de la réponse
+- Une erreur de syntaxe empêche l'exécution
+? Oubli classique : reponse.json() échoue alors (« is not a function »). Il faut attendre la promesse : const reponse = await fetch(…).
+
+Q: Comment envoyer un objet en JSON avec fetch ?
++ { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(objet) }
+- { method: 'POST', body: objet }
+- { method: 'JSON', data: objet }
+- { method: 'POST', headers: { 'Accept': 'application/json' }, body: objet.toString() }
+? Le corps doit être une chaîne : JSON.stringify. Le Content-Type annonce son format au serveur (sinon une API stricte répond 415). Accept indique, lui, le format souhaité en réponse.
+
+Q: Côté PHP, comment lire le corps JSON envoyé par fetch ?
++ json_decode(file_get_contents('php://input'), true)
+- $_POST['json'], rempli automatiquement par PHP
+- $_GET['body'], car fetch envoie les données dans l'URL
+- $_COOKIE['payload'], transmis par le navigateur
+? $_POST n'est rempli que pour les formulaires classiques (urlencoded ou multipart). Un corps JSON se lit sur php://input, puis se valide comme toute donnée externe.
+
+Q: Une page de http://localhost:5173 appelle une API PHP sur http://localhost:8000. Quel en-tête la réponse doit-elle porter pour que la page puisse la lire ?
+= Access-Control-Allow-Origin
+? Deux ports différents = deux origines différentes. Le navigateur bloque la lecture de la réponse sans Access-Control-Allow-Origin (CORS). curl ou un script serveur ne sont pas concernés : CORS ne protège pas l'API.
+
+Q: Que fait setTimeout(rappel, 1000) ?
++ Il exécute rappel une seule fois, après au moins 1000 millisecondes
+- Il exécute rappel toutes les 1000 millisecondes, sans fin
+- Il bloque tout le script pendant exactement une seconde
+- Il exécute rappel 1000 fois de suite, le plus vite possible
+? setInterval répète le rappel ; clearTimeout et clearInterval les annulent. Le délai est un minimum : si la page est occupée, le rappel attend.
+
+Q: Pendant qu'un fetch attend la réponse du serveur, que peut faire l'utilisateur ?
++ Continuer à utiliser la page : la requête est asynchrone
+- Rien : la page est figée jusqu'à la réponse du serveur
+- Seulement fermer l'onglet, les clics sont ignorés
+- Seulement faire défiler la page, sans cliquer
+? C'est l'intérêt de l'asynchrone : le navigateur reste réactif. On affiche un indicateur de chargement et on désactive le bouton pour éviter un second envoi.
+
+Q: Pourquoi désactiver le bouton « Envoyer » pendant une requête fetch ?
++ Pour éviter qu'un double clic n'envoie deux fois la même requête
+- Parce que fetch refuse de partir tant que le bouton est actif
+- Pour que le navigateur affiche automatiquement un sablier
+- Parce qu'un bouton actif annule la requête en cours
+? bouton.disabled = true avant l'envoi, puis false dans un bloc finally : le bouton est réactivé que la requête réussisse ou échoue. Le serveur doit malgré tout supporter un éventuel doublon.
+
+Q: Quelle syntaxe est équivalente à const donnees = await reponse.json(); dans un style sans async/await ?
++ reponse.json().then(donnees => { … })
+- reponse.json(donnees => { … })
+- reponse.then.json(donnees => { … })
+- JSON.parse(reponse).then(donnees => { … })
+? then reçoit la valeur de la promesse quand elle est prête ; catch reçoit l'erreur. async/await est une écriture plus lisible des mêmes promesses.

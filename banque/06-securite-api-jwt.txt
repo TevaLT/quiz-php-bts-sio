@@ -1,7 +1,7 @@
-// Banque de questions — chapitre 26 : sécuriser une API REST (JWT, Bearer, middleware Slim 4)
+// Banque de questions — chapitre 23 : sécuriser une API REST (JWT, Bearer, middleware Slim 4)
 // Questions inspirées du cours « Sécuriser une API REST — JWT et authentification » (T. Ferut, CC BY-SA 4.0).
 
-# 26
+# 23
 
 Q: Un DELETE /api/livres/7 sans aucun contrôle répond 204 et supprime le livre. Que sait le routeur de cette requête ? [cours]
 + La méthode et l'URL, mais ni l'identité de l'appelant ni ses droits
@@ -332,3 +332,10 @@ Q: Une règle du type « si le rôle vaut admin, on saute la vérification de la
 - Le rôle admin est explicitement interdit dans un payload par la RFC 7519 sur les JWT
 - La vérification de signature est beaucoup trop lente pour être appliquée aux comptes admin
 ? Décoder n'est pas vérifier. Tant que la signature n'est pas contrôlée, le payload n'est qu'un texte modifiable par quiconque.
+
+Q: Un utilisateur authentifié lit /api/reservations/32, qui appartient à un autre compte, et obtient 200. Comment nomme-t-on cette faille ? [cours]
++ IDOR (ou BOLA) : absence de contrôle d'autorisation au niveau de l'objet
+- Injection SQL : l'identifiant n'est pas préparé avant la requête
+- CSRF : la requête est forgée depuis un autre site
+- XSS : l'identifiant est affiché sans être échappé
+? Être authentifié ne donne pas le droit de consulter tous les identifiants. Le serveur vérifie que la ressource appartient à l'identité du jeton (sauf rôle habilité), par exemple avec WHERE id = :id AND utilisateur_id = :utilisateur_id, puis répond 403 ou 404 selon la politique adoptée.

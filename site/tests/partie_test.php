@@ -14,6 +14,7 @@ require dirname(__DIR__) . '/src/http.php'; // e(), pour les assistants d'affich
 require dirname(__DIR__) . '/src/vues.php';
 require dirname(__DIR__) . '/src/partie.php';
 require dirname(__DIR__) . '/src/stats.php';
+require dirname(__DIR__) . '/src/fiches.php';
 
 $total = 0;
 $echecs = 0;
@@ -38,13 +39,17 @@ $histoVide = ['version' => 1, 'sessions' => [], 'questions' => []];
 $tous = array_map('strval', array_keys(TITRES));
 
 $options = static fn (array $surcharge = []): array => $surcharge + [
-    'mode' => 'normal', 'n' => 10, 'chapitres' => $tous, 'cours' => false, 'graine' => 4242, 'graine_texte' => '4242',
+    'mode' => 'normal', 'n' => 10, 'chrono' => 0, 'chapitres' => $tous, 'cours' => false, 'graine' => 4242, 'graine_texte' => '4242',
 ];
 
 // ───── validerOptionsPartie ─────
-$r = validerOptionsPartie(['mode' => 'examen', 'n' => '20', 'chapitres' => ['03', '10'], 'cours' => '1', 'graine' => ' 123 ']);
+$r = validerOptionsPartie(['mode' => 'examen', 'n' => '20', 'chrono' => '30', 'chapitres' => ['03', '10'], 'cours' => '1', 'graine' => ' 123 ']);
 verifier('options valides : aucune erreur', $r['erreurs'], []);
-verifier('options valides : valeurs normalisées', [$r['valeurs']['mode'], $r['valeurs']['n'], $r['valeurs']['chapitres'], $r['valeurs']['cours'], $r['valeurs']['graine']], ['examen', 20, ['03', '10'], true, 123]);
+verifier('options valides : valeurs normalisées', [$r['valeurs']['mode'], $r['valeurs']['n'], $r['valeurs']['chrono'], $r['valeurs']['chapitres'], $r['valeurs']['cours'], $r['valeurs']['graine']], ['examen', 20, 30, ['03', '10'], true, 123]);
+verifier('minuteur absent : pas de minuteur', validerOptionsPartie(['n' => '15', 'chapitres' => ['03']])['valeurs']['chrono'], 0);
+verifier('minuteur hors liste refusé', isset(validerOptionsPartie(['n' => '15', 'chrono' => '7', 'chapitres' => ['03']])['erreurs']['chrono']), true);
+verifier('minuteur sous forme de tableau refusé sans TypeError', isset(validerOptionsPartie(['n' => '15', 'chrono' => ['30'], 'chapitres' => ['03']])['erreurs']['chrono']), true);
+verifier('mode série accepté', validerOptionsPartie(['mode' => 'serie', 'n' => '15', 'chapitres' => ['03']])['erreurs'], []);
 verifier('mode inconnu refusé', isset(validerOptionsPartie(['mode' => 'triche', 'n' => '15', 'chapitres' => ['03']])['erreurs']['mode']), true);
 verifier('nombre de questions hors liste refusé', isset(validerOptionsPartie(['n' => '999', 'chapitres' => ['03']])['erreurs']['n']), true);
 verifier('chapitre inconnu refusé', isset(validerOptionsPartie(['n' => '15', 'chapitres' => ['03', '99']])['erreurs']['chapitres']), true);
@@ -115,7 +120,8 @@ verifier('toutes les questions traitées : partie terminée', [$partie['terminee
 verifier('répondre à une partie terminée ne change rien', count(repondre($partie, ['passer' => true])['resultats']), 8);
 
 $bilan = bilanPartie($partie);
-verifier('bilan : cohérence ok + ko + passées = total', $bilan['ok'] + $bilan['ko'] + $bilan['passees'], $bilan['total']);
+verifier('bilan : cohérence ok + ko + passées + hors délai = total', $bilan['ok'] + $bilan['ko'] + $bilan['passees'] + $bilan['temps'], $bilan['total']);
+verifier('bilan : meilleure série cohérente avec les verdicts', $bilan['serie'], meilleureSerie($verdicts));
 verifier('bilan : total = nombre de questions', $bilan['total'], 8);
 verifier('bilan : pourcentage entre 0 et 100', $bilan['pourcentage'] >= 0 && $bilan['pourcentage'] <= 100, true);
 
@@ -143,23 +149,123 @@ $aRevoir = nombreARevoir($statiques, $histo);
 verifier('les questions ratées sont comptées pour la révision', $aRevoir, count(array_filter($partie['resultats'], static fn (array $r, int $k): bool => $r['statut'] !== 'ok' && !$partie['questions'][$k]['gen'], ARRAY_FILTER_USE_BOTH)));
 
 // ───── chapitres, blocs, conseils de révision ─────
-verifier('30 chapitres, de 00 à 29', $tous, array_map(static fn (int $i): string => sprintf('%02d', $i), range(0, 29)));
+verifier('28 chapitres, de 00 à 27', $tous, array_map(static fn (int $i): string => sprintf('%02d', $i), range(0, 27)));
 verifier('les blocs couvrent chaque chapitre une seule fois', array_merge(...array_map('chapitresDuBloc', array_keys(BLOCS))), $tous);
 $parChapitre = array_count_values(array_column($statiques, 'ch'));
-verifier('chaque chapitre a au moins 8 questions statiques', array_values(array_filter($tous, static fn (string $ch): bool => ($parChapitre[$ch] ?? 0) < 8)), []);
+verifier('chaque chapitre a au moins 12 questions statiques', array_values(array_filter($tous, static fn (string $ch): bool => ($parChapitre[$ch] ?? 0) < 12)), []);
 verifier('chaque générateur vise un chapitre existant', count(array_filter($generateurs, static fn (array $g): bool => !isset(TITRES[$g[0]]))), 0);
 verifier('conseil de révision sans cours associé', conseilRevision('03'), 'chapitre 03 — Boucles');
-verifier('conseil de révision avec le cours associé', conseilRevision('27'), 'chapitre 27 — JavaScript : les fondamentaux — cours « JavaScript Vanilla : les fondamentaux »');
+verifier('conseil de révision avec le cours associé', conseilRevision('24'), 'chapitre 24 — JavaScript : les fondamentaux — cours « JavaScript Vanilla : les fondamentaux »');
 
-// ───── sélections rapides de l'accueil ─────
-$pre = preselectionsChapitres();
-verifier('sélections rapides : uniquement des chapitres existants', count(array_filter(array_merge(...array_values($pre)), static fn (string $c): bool => !isset(TITRES[$c]))), 0);
-verifier('sélection « Tout » = tous les chapitres', $pre['Tout'], $tous);
-verifier('sélection « JavaScript » = chapitres 27 à 29', $pre['JavaScript'], ['27', '28', '29']);
-verifier('« PHP et SQL » + « JavaScript » = tous les chapitres, sans doublon', array_merge($pre['PHP et SQL'], $pre['JavaScript']), $tous);
-$js = creerPartie($options(['chapitres' => $pre['JavaScript'], 'n' => 20, 'graine' => 9]), $statiques, $generateurs, $histoVide);
-verifier('partie JavaScript : 20 questions des chapitres 27 à 29 seulement', [count($js['questions']), array_values(array_diff(array_unique(array_column($js['questions'], 'ch')), ['27', '28', '29']))], [20, []]);
+// ───── la banque porte sur le langage, pas sur le contenu des exercices de TP ─────
+$motsInterdits = ['Musée', 'CinéClub', 'Médiathèque', 'Medoo', 'appreciationFilm', 'suiteCollatz', 'calculerCleIsbn10', 'lireFiltres',
+    'filtrerFilms', 'ajouterFavori', 'EmpruntService', 'pharmacie', 'matrice de formes', 'calculatrice', 'factorielleRecursive', 'sommeProfonde'];
+$trouves = [];
+foreach ($statiques as $q) {
+    foreach ($motsInterdits as $mot) {
+        if (mb_stripos(texteCompletQuestion($q), $mot) !== false) {
+            $trouves[] = $q['source'] . ' (' . $mot . ')';
+        }
+    }
+}
+verifier('aucune question ne cite un projet ou une fonction des exercices de TP', $trouves, []);
+
+// ───── accueil : thèmes, réglages par défaut et réglages mémorisés ─────
+verifier('le bloc JavaScript = chapitres 24 à 27', chapitresDuBloc(6), ['24', '25', '26', '27']);
+verifier('chaque bloc a son symbole sur l\'accueil', array_keys(ICONES_BLOCS), array_keys(BLOCS));
+$defaut = reglagesParDefaut();
+verifier('réglages par défaut valides (tous les chapitres, entraînement)', [validerOptionsPartie(['mode' => $defaut['mode'], 'n' => (string) $defaut['n'], 'chapitres' => $defaut['chapitres']])['erreurs'], $defaut['chapitres']], [[], $tous]);
+verifier('partie rapide : réglages acceptés par la validation', validerOptionsPartie(['mode' => PARTIE_RAPIDE['mode'], 'n' => (string) PARTIE_RAPIDE['n'], 'chrono' => (string) PARTIE_RAPIDE['chrono'], 'chapitres' => $tous])['erreurs'], []);
+$memorisee = derniersReglages(['options' => ['mode' => 'serie', 'n' => 20, 'chrono' => 30, 'chapitres' => ['08', '09'], 'cours' => true, 'graine' => 123, 'graine_texte' => '123']]);
+verifier('réglages mémorisés : repris pour la partie suivante, sans la graine', [$memorisee['mode'], $memorisee['n'], $memorisee['chrono'], $memorisee['chapitres'], $memorisee['cours'], $memorisee['graine']], ['serie', 20, 30, ['08', '09'], true, null]);
+verifier('réglages mémorisés : ignorés s\'ils sont devenus invalides (ancienne version)', derniersReglages(['options' => ['mode' => 'normal', 'n' => 15, 'chapitres' => ['29']]]), null);
+verifier('réglages mémorisés : aucune partie, aucun réglage', [derniersReglages(null), derniersReglages(['options' => 'x'])], [null, null]);
+verifier('nombre de questions par défaut : 20', [NOMBRE_QUESTIONS_DEFAUT, $defaut['n'], validerOptionsPartie(['n' => '999', 'chapitres' => ['03']])['valeurs']['n']], [20, 20, 20]);
+$rapide = validerOptionsPartie(['mode' => 'normal', 'n' => '10', 'chapitres' => $tous, 'rapide' => '1'])['valeurs'];
+verifier('partie rapide : un préréglage, pas mémorisé comme réglage de l\'utilisateur', [$rapide['rapide'], derniersReglages(['options' => $rapide])], [true, null]);
+verifier('thème : un seul bouton fait le tour des thèmes', [themeSuivant('auto'), themeSuivant('clair'), themeSuivant('sombre'), themeSuivant('inconnu')], ['clair', 'sombre', 'auto', 'auto']);
+verifier('correction : étiquettes en texte, pas seulement en couleur', [
+    str_contains(etiquetteChoix(true, true), 'Ta réponse'), str_contains(etiquetteChoix(true, false), 'Bonne réponse'),
+    str_contains(etiquetteChoix(false, true), 'class="etiquette-choix ko"'), etiquetteChoix(false, false),
+], [true, true, true, '']);
+$js = creerPartie($options(['chapitres' => chapitresDuBloc(6), 'n' => 20, 'graine' => 9]), $statiques, $generateurs, $histoVide);
+verifier('partie JavaScript : 20 questions des chapitres 24 à 27 seulement', [count($js['questions']), array_values(array_diff(array_unique(array_column($js['questions'], 'ch')), ['24', '25', '26', '27']))], [20, []]);
 verifier('partie JavaScript : des questions générées en JavaScript aussi', count(array_filter($js['questions'], static fn (array $q): bool => $q['gen'])) > 0, true);
+
+// ───── minuteur (vérifié par le serveur) ─────
+$chronoPartie = creerPartie($options(['n' => 5, 'chrono' => 30, 'graine' => 31]), $statiques, $generateurs, $histoVide);
+verifier('minuteur : enregistré dans la partie', $chronoPartie['chrono'], 30);
+verifier('minuteur : pas de départ avant l\'affichage', [questionAffichee($chronoPartie), tempsRestant($chronoPartie, 1000.0)], [false, 30.0]);
+$chronoPartie = marquerAffichage($chronoPartie, 1000.0);
+verifier('minuteur : départ noté à l\'affichage, puis décompte', [questionAffichee($chronoPartie), tempsRestant($chronoPartie, 1012.5)], [true, 17.5]);
+verifier('minuteur : un rechargement ne remet pas le temps à zéro', tempsRestant(marquerAffichage($chronoPartie, 1020.0), 1020.0), 10.0);
+verifier('minuteur : jamais négatif', tempsRestant($chronoPartie, 2000.0), 0.0);
+$bonneReponse = static function (array $q): array {
+    return $q['type'] === 'saisie'
+        ? ['texte' => $q['acceptees'][0]]
+        : ['choix' => array_keys(array_filter($q['choix'], static fn (array $c): bool => $c['ok']))];
+};
+$aTemps = repondre($chronoPartie, $bonneReponse(questionCourante($chronoPartie)), 1020.0);
+verifier('minuteur : bonne réponse dans le délai = juste, durée mesurée', [$aTemps['resultats'][0]['statut'], $aTemps['resultats'][0]['duree']], ['ok', 20.0]);
+$enRetard = repondre($chronoPartie, $bonneReponse(questionCourante($chronoPartie)), 1000.0 + 30 + TOLERANCE_CHRONO + 0.5);
+verifier('minuteur : bonne réponse arrivée trop tard = temps écoulé', $enRetard['resultats'][0]['statut'], 'temps');
+verifier('minuteur : la marge réseau est tolérée', repondre($chronoPartie, $bonneReponse(questionCourante($chronoPartie)), 1000.0 + 30 + TOLERANCE_CHRONO - 0.5)['resultats'][0]['statut'], 'ok');
+verifier('minuteur : action « temps » envoyée à zéro', [validerReponse(questionCourante($chronoPartie), ['action' => 'temps'])['reponse'], repondre($chronoPartie, ['temps' => true], 1031.0)['resultats'][0]['statut']], [['temps' => true], 'temps']);
+$sansChrono = marquerAffichage(creerPartie($options(['n' => 5, 'graine' => 32]), $statiques, $generateurs, $histoVide), 0.0);
+verifier('minuteur : sans minuteur, une réponse lente reste juste', repondre($sansChrono, $bonneReponse(questionCourante($sansChrono)), 9999.0)['resultats'][0]['statut'], 'ok');
+$bilanRetard = bilanPartie(abandonnerPartie($enRetard));
+verifier('minuteur : le bilan compte les réponses hors délai', [$bilanRetard['temps'], $bilanRetard['ko'], $bilanRetard['ok']], [1, 0, 0]);
+verifier('minuteur : temps moyen de réponse', dureeMoyenne([['duree' => 4.0], ['duree' => 6.5], ['duree' => null]]), 5.3);
+
+// ───── mode série : jusqu'à la première erreur ─────
+$serieOptions = $options(['mode' => 'serie', 'n' => 5, 'graine' => 64]);
+$serie = creerPartie($serieOptions, $statiques, $generateurs, $histoVide);
+verifier('série : le nombre de questions choisi est ignoré (jusqu\'à ' . SERIE_MAX . ')', count($serie['questions']), SERIE_MAX);
+$serie = repondre($serie, $bonneReponse(questionCourante($serie)));
+$serie = repondre($serie, $bonneReponse(questionCourante($serie)));
+verifier('série : les bonnes réponses s\'enchaînent', [$serie['terminee'], serieEnCours($serie)], [false, 2]);
+$serie = repondre($serie, ['passer' => true]);
+verifier('série : la première réponse non juste termine la partie', [$serie['terminee'], positionPartie($serie), serieEnCours($serie)], [true, 3, 0]);
+$bilanSerie = bilanPartie($serie);
+verifier('série : bilan (série de 2, aucune question « non traitée »)', [$bilanSerie['serie'], $bilanSerie['non_traitees'], $bilanSerie['nouveau_record']], [2, 0, false]);
+verifier('série : meilleure série d\'une suite de verdicts', [meilleureSerie(['ok', 'ok', 'ko', 'ok', 'ok', 'ok', 'temps']), meilleureSerie([]), meilleureSerie(['ko'])], [3, 0, 0]);
+$histoSerie = appliquerResultats($histoVide, resultatsPourHistorique($serie), (int) $serie['graine'], infosHistorique($serie));
+verifier('série : la session enregistre le mode, le minuteur et la série', [$histoSerie['sessions'][0]['mode'], $histoSerie['sessions'][0]['chrono'], $histoSerie['sessions'][0]['serie']], ['serie', 0, 2]);
+verifier('série : record personnel lu dans l\'historique', [meilleureSerieHistorique($histoSerie), meilleureSerieHistorique($histoVide)], [2, 0]);
+verifier('série : le record est mémorisé au lancement de la partie suivante', creerPartie($serieOptions, $statiques, $generateurs, $histoSerie)['record'], 2);
+
+// ───── score en direct et prochaine étape conseillée ─────
+$avecResultats = static fn (array $statuts, array $surcharge = []): array => $surcharge + [
+    'mode' => 'normal', 'chrono' => 0, 'questions' => [],
+    'resultats' => array_map(static fn (string $s): array => ['statut' => $s, 'choisies' => [], 'texte' => '', 'duree' => null], $statuts),
+];
+verifier('score en direct : justes, erreurs (fausses ou hors délai) et passées', scorePartie($avecResultats(['ok', 'ko', 'temps', 'passee', 'ok'])), ['ok' => 2, 'erreurs' => 2, 'passees' => 1]);
+$bilanFictif = static fn (array $parChapitre, int $ko, int $total, int $ok): array => [
+    'total' => $total, 'ok' => $ok, 'ko' => $ko, 'passees' => 0, 'temps' => 0,
+    'pourcentage' => $total === 0 ? 0 : (int) round(100 * $ok / $total), 'par_chapitre' => $parChapitre,
+];
+verifier('chapitre le plus raté (à égalité de taux : le plus d\'erreurs)', chapitreLePlusFaible(['03' => ['ok' => 1, 'total' => 2], 12 => ['ok' => 2, 'total' => 4], '05' => ['ok' => 3, 'total' => 3]]), '12');
+verifier('chapitre le plus raté : aucun si tout est juste', chapitreLePlusFaible(['03' => ['ok' => 2, 'total' => 2]]), null);
+$etape = static fn (array $partie, array $bilan): string => prochaineEtape($partie, $bilan)['action'];
+verifier('prochaine étape : beaucoup d\'erreurs → relire la fiche du chapitre le plus raté', [$etape($avecResultats([]), $bilanFictif(['07' => ['ok' => 0, 'total' => 3], '02' => ['ok' => 1, 'total' => 2]], 4, 5, 1)), prochaineEtape($avecResultats([]), $bilanFictif(['07' => ['ok' => 0, 'total' => 3], '02' => ['ok' => 1, 'total' => 2]], 4, 5, 1))['chapitre']], ['fiche', '07']);
+verifier('prochaine étape : quelques erreurs → les refaire', $etape($avecResultats([]), $bilanFictif(['02' => ['ok' => 4, 'total' => 5]], 1, 5, 4)), 'erreurs');
+verifier('prochaine étape : sans faute → ajouter le minuteur, puis tenter une série', [
+    $etape($avecResultats([]), $bilanFictif(['02' => ['ok' => 5, 'total' => 5]], 0, 5, 5)),
+    $etape($avecResultats([], ['chrono' => 30]), $bilanFictif(['02' => ['ok' => 5, 'total' => 5]], 0, 5, 5)),
+    $etape($avecResultats([], ['mode' => 'serie']), $bilanFictif(['02' => ['ok' => 5, 'total' => 5]], 0, 5, 5)),
+    $etape($avecResultats([]), $bilanFictif([], 0, 0, 0)),
+], ['minuteur', 'serie', 'rejouer', 'rejouer']);
+
+// ───── fiches de révision ─────
+verifier('fiches : toutes les questions du chapitre demandé', count(filtrerFiches($statiques, '05', '')), $parChapitre['05']);
+$motCle = filtrerFiches($statiques, null, 'password_hash');
+verifier('fiches : la recherche trouve une notion dans tous les chapitres', count($motCle) > 0 && count(array_filter($motCle, static fn (array $q): bool => !str_contains(texteCompletQuestion($q), 'password_hash'))) === 0, true);
+verifier('fiches : recherche sans accents ni majuscules', count(filtrerFiches($statiques, null, 'ECHAPPEMENT')) > 0, true);
+verifier('fiches : tous les mots doivent être présents', count(filtrerFiches($statiques, null, 'closure zzzzz')), 0);
+verifier('fiches : recherche vide = aucune fiche', filtrerFiches($statiques, null, '   '), []);
+verifier('fiches : recherche validée (forme falsifiée, longueur maximale)', [validerRecherche(['x']), mb_strlen(validerRecherche(str_repeat('é', 200)))], ['', RECHERCHE_LONGUEUR_MAX]);
+verifier('durée courte au format français', [formaterSecondes(8.44), formaterSecondes(65.0)], ['8,4 s', '1 min 05 s']);
+verifier('temps moyen de l\'historique, pondéré par les réponses', tempsMoyenHistorique([['total' => 10, 'duree_moyenne' => 4.0], ['total' => 30, 'duree_moyenne' => 8.0], ['total' => 5]]), 7.0);
 
 // ───── refaire ses erreurs ─────
 $attendues = [];

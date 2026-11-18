@@ -1,6 +1,7 @@
-// Banque de questions — chapitres 19 à 25 (Composer, Medoo, Slim, MVC, REST, projet)
+// Banque de questions — chapitres 20 à 22 : Composer, architecture MVC et frameworks, API REST
+// Format : voir banque/README.md   ([cours] = notion tirée d'un cours, voir SOURCES.md)
 
-# 19
+# 20
 
 Q: Dans composer.json, quelle différence y a-t-il entre require et autoload ?
 + require liste les paquets à télécharger ; autoload dit où trouver tes propres classes
@@ -79,28 +80,6 @@ Q: Que signifie la contrainte de version « ^4.0 » ?
 - Toute version strictement inférieure à 4.0
 ? ^ suit le versionnement sémantique : pas de rupture de compatibilité à l'intérieur d'une version majeure.
 
-Q: Qu'est-ce que la « promotion de constructeur » ?
-|public function __construct(private string $titre, private int $annee) {}
-+ Déclarer et initialiser les propriétés directement dans la liste des paramètres
-- Appeler automatiquement le constructeur de la classe parente
-- Passer la classe à un niveau de visibilité supérieur
-- Remplacer le constructeur par une méthode statique
-? Pratique : plus besoin de déclarer la propriété puis de l'assigner à la main.
-
-Q: Que signifie private devant une propriété ?
-+ Elle n'est accessible que depuis l'intérieur de la classe
-- Elle n'est accessible que depuis les classes enfants
-- Elle n'est accessible que depuis le même namespace
-- Elle n'est accessible que depuis le même fichier
-? public : partout ; protected : classe et enfants ; private : classe seule. C'est l'encapsulation.
-
-Q: Que garantit readonly sur une propriété ?
-+ Elle ne peut être assignée qu'une seule fois, à l'initialisation
-- Elle ne peut être lue que depuis l'intérieur de la classe
-- Elle est automatiquement mise en cache entre deux requêtes
-- Elle est protégée contre les injections SQL
-? Un objet readonly est immuable après construction : c'est l'idéal pour un objet de domaine.
-
 Q: Quelle commande lance le serveur défini par scripts.start dans composer.json ?
 = composer start
 ? Les scripts Composer sont des raccourcis : « composer start » exécute la commande associée (ici php -S …).
@@ -112,95 +91,232 @@ Q: Pourquoi ne jamais modifier le contenu de vendor/ ?
 - vendor/ est en lecture seule sur tous les systèmes
 ? Pour changer un comportement, on met à jour la dépendance ou on l'étend, jamais en retouchant son code.
 
-# 20
+Q: Quelle commande ajoute une bibliothèque au projet et l'inscrit dans composer.json ?
+= composer require
+? Exemple : composer require firebase/php-jwt. Composer choisit une contrainte (^6.10…), télécharge le paquet dans vendor/ et met à jour composer.lock. Avec --dev, la dépendance ne sert qu'au développement (tests).
 
-Q: Qu'est-ce que Medoo ?
-+ Une couche légère au-dessus de PDO qui génère des requêtes préparées
-- Un remplaçant de PDO qui n'utilise plus de requêtes préparées
-- Un framework complet qui impose une architecture MVC
-- Un moteur de base de données écrit entièrement en PHP
-? Medoo réduit le code répétitif des requêtes courantes mais ne remplace ni le modèle relationnel, ni les contraintes SQL, ni la validation métier.
+Q: Que signifie le sigle PSR ?
++ PHP Standard Recommendation : une recommandation commune publiée par le PHP-FIG
+- PHP Secure Request : un format de requête sécurisée
+- Package Source Repository : le dépôt central de Composer
+- PHP Server Runtime : le moteur qui exécute les scripts
+? Exemples : PSR-4 (autoload), PSR-7 (messages HTTP), PSR-15 (middlewares), PSR-3 (journalisation). Les bibliothèques qui les respectent sont interchangeables.
 
-Q: Que doit retourner trouver(int $id) du repository quand la ligne n'existe pas ?
+# 21
+
+Q: Que signifie « refactoriser » ?
++ Améliorer la structure interne sans changer le comportement observable
+- Ajouter des fonctionnalités en réécrivant tout le code d'un coup
+- Corriger uniquement les bugs signalés par les utilisateurs
+- Réduire le nombre de lignes quel que soit le résultat
+? Un changement à la fois, suivi d'un test (la recette), est plus sûr qu'une réécriture globale.
+
+Q: Pourquoi un fichier qui mélange connexion, SQL, validation, HTML et HTTP est-il un problème ?
++ Il a plusieurs raisons de changer : responsabilités mélangées
+- PHP refuse d'exécuter des fichiers de plus de 100 lignes
+- Le navigateur ne sait pas interpréter un tel fichier
+- Il consomme obligatoirement plus de mémoire que plusieurs fichiers
+? C'est le principe de responsabilité unique : un composant, une raison de changer.
+
+Q: Qu'est-ce qu'un « front controller » ?
++ Un point d'entrée unique qui reçoit toutes les requêtes et les répartit
+- Un contrôleur chargé uniquement de l'affichage de la page d'accueil
+- Un fichier JavaScript qui contrôle les formulaires côté navigateur
+- Le premier contrôleur créé dans le projet, par ordre alphabétique
+? public/index.php charge la configuration, puis le routeur associe la méthode et le chemin à un contrôleur. Les autres fichiers PHP restent hors du dossier public.
+
+Q: Dans une architecture MVC avec Slim, qui reçoit GET /livres/{id} ?
++ Le routeur, qui fait correspondre méthode et chemin à un traitement
+- Le modèle, qui lit l'identifiant dans la base
+- La vue, qui choisit le template à afficher
+- Le repository, qui connaît l'URL demandée
+? Le routeur associe l'URL à un contrôleur ; le contrôleur orchestre ensuite.
+
+Q: Qui vérifie que l'identifiant de la route est valide (entier ≥ 1) ?
++ Le contrôleur
+- Le modèle
+- La vue
+- Le routeur Slim
+? Le contrôleur lit la requête, valide les entrées HTTP et choisit la réponse. Le modèle porte les invariants du domaine.
+
+Q: Qui interdit un titre vide (invariant du domaine) ?
++ Le modèle (par exemple dans le constructeur de Livre)
+- Le contrôleur, dans chaque action
+- La vue, avec l'attribut required
+- Le routeur, avant d'appeler le contrôleur
+? La règle vaut pour le formulaire, les imports et une future API ; required et NOT NULL la complètent sans la remplacer.
+
+Q: Qui connaît la table livres et écrit le SQL correspondant ?
++ Le repository
+- Le contrôleur
+- La vue
+- Le modèle Livre
+? Le repository est l'adaptateur de persistance : SELECT / INSERT avec PDO.
+
+Q: Qui échappe les chaînes avant de les écrire dans le HTML ?
++ La vue, au moment de l'affichage
+- Le repository, au moment de la lecture
+- Le routeur, avant d'appeler le contrôleur
+- Le modèle, dans son constructeur
+? htmlspecialchars se fait à la sortie, dans la vue.
+
+Q: Qui choisit entre un 404 et une redirection 303 ?
++ Le contrôleur
+- Le repository
+- Le modèle
+- La base de données
+? Le repository retourne null ; le contrôleur traduit en statut HTTP.
+
+Q: Un repository doit-il répondre lui-même par un statut HTTP 404 quand il ne trouve pas la ligne ? [cours]
++ Non : il renvoie null ou une entité ; le contrôleur choisit le statut
+- Oui : c'est lui qui connaît la base, donc lui qui sait que la ligne manque
+- Oui, mais seulement pour une réponse JSON, jamais pour une page HTML
+- Non : il doit lever une PDOException à chaque ligne absente
+? Le repository encapsule SQL et PDO ; il ne connaît ni HTTP, ni HTML, ni JSON. Une absence devient null ; le contrôleur la traduit en 404 (page ou objet JSON d'erreur). Une PDOException signale, elle, une panne technique à traiter à part.
+
+Q: Que doit retourner la méthode trouver(int $id) d'un repository quand la ligne n'existe pas ?
 + null : un contrat clair, jamais un false ambigu
 - false, comme PDO::fetch
 - Une RuntimeException
 - Un tableau vide
-? La méthode promet « tableau ou null » : l'appelant sait exactement quoi tester.
+? La méthode promet « entité ou null » (type de retour ?Livre) : l'appelant sait exactement quoi tester.
 
-Q: Quel opérateur Medoo exprime un LIKE dans une clé de condition ?
-|$database->select('films', '*', ['titre[?]' => $texte]);
-= [~]
-? 'titre[~]' => $texte produit un LIKE. D'autres : [>=], [<], [!], [<>] (BETWEEN).
+Q: Un projet contient des dossiers Model, View et Controller. Son architecture est-elle forcément bonne ? [cours]
++ Non : une architecture se juge aux responsabilités réelles, pas aux noms de dossiers
+- Oui : les noms de dossiers garantissent la séparation
+- Oui, dès lors que le code fonctionne
+- Cela dépend uniquement du CSS
+? Si tout le SQL est écrit dans LivreController.php, une responsabilité reste au mauvais endroit.
 
-Q: Que signifie la condition Medoo 'annee[>=]' => 1990 ?
-+ annee >= 1990
-- annee <= 1990
-- annee != 1990
-- annee BETWEEN 0 AND 1990
-? Les opérateurs se placent entre crochets à la fin du nom de la colonne.
+Q: D'où vient le motif MVC ? [cours]
++ De Xerox PARC et du langage Smalltalk, avec Trygve Reenskaug (1979)
+- Du W3C, avec la première version du HTML en 1991
+- De Microsoft, avec le framework .NET en 2002
+- De Rasmus Lerdorf, avec la première version de PHP
+? Le MVC Web est une adaptation du principe original (cycle requête → réponse), pas une copie.
 
-Q: Que retourne $database->id() après un insert() ?
-+ L'identifiant de la dernière ligne insérée
-- Le nombre de lignes insérées
-- L'identifiant de la dernière ligne lue
-- Le nombre total de lignes de la table
-? Équivalent de lastInsertId() de PDO ; le repository le convertit en int.
+Q: Slim 4 impose-t-il MVC ? [cours]
++ Non : Slim gère HTTP, la séparation MVC est un choix de conception
+- Oui : il génère automatiquement modèle, vue et contrôleur
+- Oui, mais seulement pour les routes POST
+- Non, mais il interdit les repositories
+? Slim fournit routeur, PSR-7 et middlewares ; modèle, contrôleurs, vues et repository sont créés par l'équipe.
 
-Q: Comment accéder au PDO sous-jacent depuis Medoo ?
-= $database->pdo
-? Utile pour une requête d'agrégation complexe écrite en SQL pur.
+Q: Qu'est-ce que l'injection de dépendances ? [cours]
++ Fournir à un objet ce dont il a besoin
+- Insérer du code SQL dans une requête préparée
+- Copier le code d'une classe dans une autre
+- Importer des paquets avec Composer
+? Dans public/index.php : $repository = new LivreRepository($pdo); $controller = new LivreController($repository, $vue, $csrf);
 
-Q: Jointure avec agrégations et sous-requête : Medoo ou PDO ?
-+ PDO : un SQL écrit à la main reste plus lisible qu'une construction Medoo
-- Medoo : toute requête complexe est plus lisible sous forme de tableau
-- Medoo : PDO ne sait pas exécuter de jointure avec agrégation
-- PDO : Medoo interdit les jointures, quelles qu'elles soient
-? Règle pratique : Medoo pour les lectures/écritures simples, PDO ponctuellement quand Medoo devient illisible.
-
-Q: À quoi sert $database->action(function ($db) { … }) ?
-+ À exécuter des opérations dans une transaction, annulée en cas d'échec
-- À journaliser chaque requête exécutée dans un fichier de logs
-- À exécuter les requêtes en parallèle sur plusieurs connexions
-- À mettre en cache le résultat des requêtes de lecture
-? Équivalent de beginTransaction / commit / rollBack : retourner false ou lever une exception annule tout.
-
-Q: Comment observer le SQL réellement généré par Medoo ?
-+ En affichant la dernière requête avec last() ou l'historique avec log()
-- En lisant le fichier composer.lock du projet
-- En ouvrant la base SQLite avec un éditeur de texte
-- En activant strict_types dans le fichier du repository
-? Il faut toujours savoir réécrire la requête en SQL sur papier : SELECT … WHERE annee >= :v, avec :v un paramètre préparé.
-
-Q: Medoo applique-t-il les règles métier à ta place ?
-+ Non : il ne remplace ni le modèle, ni les contraintes, ni la validation
-- Oui : il valide automatiquement le type de chaque colonne
-- Oui : il applique les contraintes CHECK à la place de la base
-- Non, mais il corrige seul les données invalides avant l'insertion
-? Le repository reçoit des données déjà validées ; la base garde ses contraintes comme seconde défense.
-
-Q: Avec 'titre[~]' => '%_', y a-t-il un risque d'injection SQL ?
-+ Non, la valeur est préparée ; % et _ restent toutefois des jokers de LIKE
-- Oui, Medoo concatène la valeur telle quelle dans le SQL
-- Oui, mais seulement si le titre contient une apostrophe
-- Non, car Medoo supprime automatiquement les caractères % et _
-? Pas d'injection SQL : la valeur est liée comme paramètre. Le comportement joker de % et _ est un détail du LIKE à connaître.
-
-Q: Pourquoi la base conserve-t-elle CHECK (note BETWEEN 0 AND 10) alors que le repository valide déjà la note ?
-+ C'est une seconde défense, au cas où une écriture contourne le repository
-- Parce que PHP ne sait pas comparer deux nombres décimaux
-- Parce que Medoo ignore les valeurs que le repository a validées
-- Parce que la contrainte accélère les requêtes de lecture
-? Défense en profondeur : la base est le dernier rempart de l'intégrité.
-
-Q: Pourquoi le repository reçoit-il l'instance de Medoo par son constructeur ?
-+ Pour injecter la dépendance : connexion créée une fois
+Q: Pourquoi un repository reçoit-il la connexion PDO par son constructeur ?
++ La connexion est créée une seule fois puis injectée là où elle sert
 - Pour que chaque méthode puisse ouvrir sa propre connexion
-- Pour rendre Medoo accessible à toutes les vues du projet
-- Parce que Medoo ne peut être utilisé que dans un constructeur
-? Injection de dépendances : la classe reçoit ce dont elle a besoin au lieu de le fabriquer.
+- Pour rendre la connexion accessible à toutes les vues du projet
+- Parce que PDO ne peut être utilisé que dans un constructeur
+? La classe reçoit ce dont elle a besoin au lieu de le fabriquer : on peut lui passer une base SQLite en mémoire dans les tests.
 
-# 21
+Q: Où placer les requêtes SQL d'une application organisée en couches ?
++ Dans le repository ; public/index.php n'en contient aucune
+- Directement dans chaque route, près du HTML
+- Dans les vues, au plus près de l'affichage
+- Dans composer.json, section scripts
+? public/index.php peut orchestrer, mais ne contient aucune requête.
+
+Q: Pourquoi le nom du template ne doit-il jamais venir d'un paramètre libre de l'URL ? [cours]
++ Sinon un attaquant pourrait faire inclure un fichier arbitraire du serveur
+- Parce que les templates sont chiffrés par la vue
+- Parce que l'URL est limitée à vingt caractères
+- Parce que PHP interdit les include dynamiques
+? PhpView::render fait require __DIR__ . '/../../views/' . $template . '.php' : le nom vient du code, jamais du client.
+
+Q: Le constructeur de Livre lève InvalidArgumentException pour un titre vide. Quel statut renvoie le contrôleur ? [cours]
+= 422
+? 422 : saisie non conforme aux règles, formulaire réaffiché avec la valeur et le message.
+
+Q: Pourquoi intercepter InvalidArgumentException plutôt que Throwable dans le contrôleur ? [cours]
++ Pour ne pas déguiser des pannes techniques en erreurs métier
+- Parce que Throwable n'existe pas en PHP 8
+- Parce que Throwable ne peut pas être attrapé
+- Pour obtenir un message d'erreur plus court
+? Une erreur SQL doit remonter : un middleware la journalise et présente un 500 neutre, jamais un faux 404 ou 422.
+
+Q: Une requête SQL échoue de façon inattendue. Quelle réponse est la plus appropriée ? [cours]
++ Un 500 neutre, avec le détail journalisé côté serveur
+- Un 404, pour ne pas inquiéter l'utilisateur
+- Un 422 avec le message SQL complet
+- Un 200 avec une page blanche
+? 404 : absence attendue. 500 : panne, à journaliser. Les traces et chemins internes ne s'affichent jamais en production.
+
+Q: Demain les clients veulent du JSON au lieu de HTML. Que doit-on principalement adapter ? [cours]
++ La représentation de sortie (contrôleur / format), pas le modèle ni le repository
+- Le schéma de la base SQLite
+- La règle de validation du titre dans Livre
+- Toutes les requêtes SQL du repository
+? Le même métier peut alimenter plusieurs interfaces : seule la couche HTTP change.
+
+Q: Une interface HTML et une API JSON offrent la même opération. Comment partager les règles métier ?
++ Les deux contrôleurs appellent le même service (ou le même modèle)
+- Le contrôleur HTML contient les règles, l'API les recopie
+- L'API JSON appelle le contrôleur HTML puis convertit la page
+- Les règles sont réécrites dans chaque vue
+? Seuls les contrôleurs diffèrent : représentation (HTML ou JSON) et statuts. Une règle écrite une seule fois ne peut pas diverger.
+
+Q: Où placer la règle « le nombre de places ne peut pas être négatif » dans une architecture MVC ? [cours]
++ Dans le modèle ou le service métier, indépendamment de l'interface
+- Dans la vue, car c'est elle qui affiche le nombre de places
+- Dans le routeur, avant d'appeler le contrôleur concerné
+- Dans la feuille CSS, grâce à l'attribut min du champ
+? Le modèle porte ses invariants (nom non vide, places ≥ 0). La vue affiche et échappe ; le contrôleur lit la requête et orchestre ; le repository exécute le SQL. Une règle placée dans la vue disparaît dès qu'une autre interface (API mobile) réutilise le domaine.
+
+Q: Quelle règle ne peut pas être garantie par une simple contrainte de colonne ?
++ Un client ne peut pas avoir plus de trois commandes en cours
+- Le nom d'un client est obligatoire
+- L'adresse email d'un client est unique
+- Le montant d'une commande est positif
+? La règle porte sur plusieurs lignes : le service la vérifie (dans une transaction) ; NOT NULL, UNIQUE et CHECK couvrent les autres.
+
+Q: Après un refactoring vers MVC, quelles contraintes mesurables peut-on vérifier ?
++ Seule la couche repository exécute du SQL
++ Les vues ne lancent aucune requête
++ Le domaine ne dépend pas du framework
+- Les contrôleurs lisent $_POST directement
+? Autres contrôles possibles : aucune classe ne lit $_GET ou $_POST, public/index.php reste court, et la recette reste verte après chaque extraction.
+
+Q: Pourquoi initialiser la base (database/init.php) en dehors des routes ? [cours]
++ Afficher une page ne doit pas recréer la structure SQL
+- Parce que les routes n'ont pas accès à la base
+- Parce que SQLite refuse les CREATE TABLE dans une route
+- Parce que le script est plus rapide dans un autre dossier
+? L'initialisation se fait une fois, par un script autonome (php database/init.php).
+
+Q: Pourquoi utiliser SQLite pour un projet d'apprentissage ? [cours]
++ Aucun serveur à installer, mais la même API PDO que MySQL
+- Parce qu'il est plus sécurisé que MySQL
+- Parce qu'il est conçu pour de très gros volumes
+- Parce que Slim ne fonctionne qu'avec SQLite
+? Limite assumée : SQLite convient à un projet pédagogique ; une application multi-utilisateurs a d'autres contraintes.
+
+Q: Que vérifie un test de vue sur un titre contenant du HTML ? [cours]
++ Que le HTML reçu comme titre est affiché comme texte
+- Que la vue exécute le HTML pour mettre le titre en gras
+- Que le titre est enregistré en base sans modification
+- Que la vue génère automatiquement du JSON
+? Exemple : un titre « <b>x</b> » doit apparaître littéralement, pas en gras.
+
+Q: Pourquoi « vérifier que tout fonctionne » n'est-il pas un cas de test ? [cours]
++ Il ne précise ni l'état initial, ni l'action, ni le résultat observable attendu
+- Un cas de test doit toujours être automatisé pour compter comme un test
+- Un test ne peut vérifier qu'une seule fonction à la fois
+- Le mot « fonctionne » est réservé aux tests de performance
+? Un test discriminant indique la situation initiale, l'action, le résultat attendu et la propriété vérifiée. Sans cela, on ne peut ni le rejouer ni conclure.
+
+Q: Pour être convaincant à l'oral sur le MVC, quel argument montre une vraie compréhension ? [cours]
++ Je peux tracer une requête, justifier chaque couche et la tester
+- J'ai trois dossiers nommés Model, View et Controller
+- Mon code est très court
+- J'ai utilisé le framework Slim
+? « J'ai codé du MVC » ne suffit pas : expliquer le trajet GET /livres/1, les responsabilités et ce qui devient facile à changer.
 
 Q: Que fournit Slim 4 ?
 + Un routeur HTTP, des objets PSR-7 et des middlewares
@@ -245,18 +361,6 @@ Q: Comment produire la réponse d'une route Slim ?
 - Appeler header() puis http_response_code()
 - Retourner directement une chaîne de caractères
 ? Dans une route Slim, ni echo, ni header(), ni http_response_code() : tout passe par l'objet Response retourné.
-
-Q: Un POST /miroir reçoit un JSON mal formé. Quel statut renvoie-t-on ?
-= 400
-? 400 : la requête est impossible à lire. Un JSON lisible mais invalide pour le métier donne 422.
-
-Q: Le JSON reçu est lisible, mais la propriété message est vide. Quel statut ?
-= 422
-? 422 Unprocessable Entity (ou Content) : la demande est compréhensible mais viole les règles métier.
-
-Q: Quel statut annonce une ressource créée ?
-= 201
-? 201 Created, avec un en-tête Location vers l'URL de la nouvelle ressource.
 
 Q: Dans quel ordre les middlewares Slim s'exécutent-ils ?
 + Le dernier ajouté est exécuté en premier
@@ -307,11 +411,18 @@ Q: Dans quel ordre une requête réussie traverse-t-elle les composants ?
 - Client, middleware, callback, serveur PHP, routeur, réponse
 ? Le statut, les en-têtes et le corps sont décidés dans le callback (ou modifiés par un middleware).
 
+Q: Quelles préoccupations transversales confie-t-on volontiers à un middleware ?
++ Ajouter un identifiant à chaque requête
++ Mesurer la durée de traitement
++ Ajouter des en-têtes de sécurité
+- Écrire les requêtes SQL d'un repository
+? Un middleware agit avant ou après TOUTES les routes concernées : journal, authentification, en-têtes, gestion d'erreurs. Le SQL reste dans les repositories.
+
 Q: Que signifie une réponse 501 sur une route d'une application en cours d'écriture ?
-+ La route existe mais n'est pas encore programmée
-- Le serveur manque de mémoire pour traiter ces routes
++ La route existe mais son traitement n'est pas encore programmé
+- Le serveur manque de mémoire pour traiter cette route
 - La requête du client est mal formée
-- L'utilisateur n'est pas autorisé à les appeler
+- L'utilisateur n'est pas autorisé à l'appeler
 ? 501 Not Implemented : le serveur ne sait pas (encore) exécuter la demande.
 
 Q: Le serveur intégré de PHP (php -S) convient-il à la production ?
@@ -326,232 +437,6 @@ Q: Quelle valeur contient $args['num'] pour la route /films/{id}/avis/{num} et l
 ? Les segments entre accolades sont capturés par nom : id vaut 7, num vaut 3 (toujours des chaînes).
 
 # 22
-
-Q: Quel trajet suit une donnée dans le catalogue Slim + Medoo ?
-+ Route, repository, Medoo/SQLite, puis HTML renvoyé
-- Route, SQLite, vue, repository, HTML
-- Repository, route, HTML, Medoo, SQLite
-- Medoo, route, repository, SQLite, HTML
-? Le but : faire circuler une donnée de bout en bout, sans encore introduire MVC.
-
-Q: Un repository peut-il produire du HTML ou manipuler des objets PSR-7 ?
-+ Non : il ne connaît ni HTML ni PSR-7
-- Oui : c'est son rôle de fabriquer la page
-- Oui, mais seulement pour les listes de films
-- Non, sauf pour la route POST /films
-? Le repository ne fait que de la persistance. La route (ou le contrôleur) fabrique la réponse.
-
-Q: Quelle différence entre un 400 et un 404 pour GET /films/{id} ?
-+ 400 : identifiant mal formé ; 404 : identifiant valide mais ressource absente
-- 400 : ressource absente ; 404 : identifiant mal formé
-- 400 : panne serveur ; 404 : refus d'accès
-- Aucune : les deux se valent selon la préférence du développeur
-? /films/abc → 400 (on ne sait même pas quelle ressource demander). /films/9999 → 404.
-
-Q: Une création POST /films invalide : que renvoie-t-on ?
-+ Le formulaire réaffiché avec les valeurs saisies et le statut 422
-- Une redirection 303 vers la liste des films
-- Un statut 200 sans aucun message d'erreur
-- Un statut 500 avec la trace de l'exception
-? En cas de succès : redirection 303 vers /films/{nouvelId} (Post/Redirect/Get).
-
-Q: Quelle plage d'années accepte-t-on pour un film, et pourquoi 1895 ? [cours]
-+ De 1895 (première projection des frères Lumière) à l'année courante + 2
-- De 1800 (invention du cinéma) à l'année courante exactement
-- De 1900 à 2100, pour couvrir tout le siècle
-- Aucune plage : n'importe quel entier positif est accepté
-? Une règle métier qui appartient au serveur, pas à l'attribut HTML min.
-
-Q: Pourquoi échapper chaque valeur issue de la base avant de l'afficher dans la page ?
-+ Un titre stocké peut contenir du HTML ou du JavaScript
-- Parce que Medoo corrompt les accents des titres
-- Parce que SQLite ne sait pas stocker de texte brut
-- Parce que le statut 200 l'exige pour être valide
-? Les requêtes préparées protègent le SQL, pas le HTML : htmlspecialchars à chaque sortie.
-
-Q: Combien de fois la connexion à la base doit-elle être créée dans l'application ?
-+ Une seule fois, puis injectée dans le repository
-- Une fois par route appelée
-- Une fois par requête SQL exécutée
-- Une fois par film affiché dans la liste
-? Contrainte d'architecture : la connexion est créée une seule fois, au démarrage, puis transmise à ceux qui en ont besoin.
-
-Q: Où placer les requêtes SQL ?
-+ Dans le repository ; public/index.php n'en contient aucune
-- Directement dans chaque route, près du HTML
-- Dans les vues, au plus près de l'affichage
-- Dans composer.json, section scripts
-? public/index.php peut orchestrer, mais ne contient aucune requête.
-
-Q: Quel statut convient après un POST réussi qui redirige vers la fiche créée ?
-= 303
-? 303 See Other : le navigateur poursuit en GET. C'est le Post/Redirect/Get.
-
-Q: Comment protéger le POST /films contre une requête forgée ?
-+ Avec un jeton CSRF stocké en session, vérifié par hash_equals
-- En ajoutant l'attribut required sur chaque champ
-- En vérifiant l'en-tête User-Agent de la requête
-- En passant la route de POST à GET
-? Le jeton aléatoire, placé en champ caché, prouve que le formulaire vient bien de ton site.
-
-# 23
-
-Q: Que signifie « refactoriser » ?
-+ Améliorer la structure interne sans changer le comportement observable
-- Ajouter des fonctionnalités en réécrivant tout le code d'un coup
-- Corriger uniquement les bugs signalés par les utilisateurs
-- Réduire le nombre de lignes quel que soit le résultat
-? Un changement à la fois, suivi d'un test (la recette), est plus sûr qu'une réécriture globale.
-
-Q: Pourquoi un fichier qui mélange connexion, SQL, validation, HTML et HTTP est-il un problème ?
-+ Il a plusieurs raisons de changer : responsabilités mélangées
-- PHP refuse d'exécuter des fichiers de plus de 100 lignes
-- Le navigateur ne sait pas interpréter un tel fichier
-- Il consomme obligatoirement plus de mémoire que plusieurs fichiers
-? C'est le principe de responsabilité unique : un composant, une raison de changer.
-
-Q: Dans une architecture MVC avec Slim, qui reçoit GET /livres/{id} ?
-+ Le routeur, qui fait correspondre méthode et chemin à un traitement
-- Le modèle, qui lit l'identifiant dans la base
-- La vue, qui choisit le template à afficher
-- Le repository, qui connaît l'URL demandée
-? Le routeur associe l'URL à un contrôleur ; le contrôleur orchestre ensuite.
-
-Q: Qui vérifie que l'identifiant de la route est valide (entier ≥ 1) ?
-+ Le contrôleur
-- Le modèle
-- La vue
-- Le routeur Slim
-? Le contrôleur lit la requête, valide les entrées HTTP et choisit la réponse. Le modèle porte les invariants du domaine.
-
-Q: Qui interdit un titre vide (invariant du domaine) ?
-+ Le modèle (par exemple dans le constructeur de Livre)
-- Le contrôleur, dans chaque action
-- La vue, avec l'attribut required
-- Le routeur, avant d'appeler le contrôleur
-? La règle vaut pour le formulaire, les imports et une future API ; required et NOT NULL la complètent sans la remplacer.
-
-Q: Qui connaît la table livres et écrit le SQL correspondant ?
-+ Le repository
-- Le contrôleur
-- La vue
-- Le modèle Livre
-? Le repository est l'adaptateur de persistance : SELECT / INSERT en PDO ou Medoo.
-
-Q: Qui échappe les chaînes avant de les écrire dans le HTML ?
-+ La vue, au moment de l'affichage
-- Le repository, au moment de la lecture
-- Le routeur, avant d'appeler le contrôleur
-- Le modèle, dans son constructeur
-? htmlspecialchars se fait à la sortie, dans la vue.
-
-Q: Qui choisit entre un 404 et une redirection 303 ?
-+ Le contrôleur
-- Le repository
-- Le modèle
-- La base de données
-? Le repository retourne null ; le contrôleur traduit en statut HTTP.
-
-Q: Un projet contient des dossiers Model, View et Controller. Son architecture est-elle forcément bonne ? [cours]
-+ Non : une architecture se juge aux responsabilités réelles, pas aux noms de dossiers
-- Oui : les noms de dossiers garantissent la séparation
-- Oui, dès lors que le code fonctionne
-- Cela dépend uniquement du CSS
-? Si tout le SQL est écrit dans LivreController.php, une responsabilité reste au mauvais endroit.
-
-Q: D'où vient le motif MVC ? [cours]
-+ De Xerox PARC et du langage Smalltalk, avec Trygve Reenskaug (1979)
-- Du W3C, avec la première version du HTML en 1991
-- De Microsoft, avec le framework .NET en 2002
-- De Rasmus Lerdorf, avec la première version de PHP
-? Le MVC Web est une adaptation du principe original (cycle requête → réponse), pas une copie.
-
-Q: Slim 4 impose-t-il MVC ? [cours]
-+ Non : Slim gère HTTP, la séparation MVC est un choix de conception
-- Oui : il génère automatiquement modèle, vue et contrôleur
-- Oui, mais seulement pour les routes POST
-- Non, mais il interdit les repositories
-? Slim fournit routeur, PSR-7 et middlewares ; modèle, contrôleurs, vues et repository sont créés par l'équipe.
-
-Q: Qu'est-ce que l'injection de dépendances ? [cours]
-+ Fournir à un objet ce dont il a besoin
-- Insérer du code SQL dans une requête préparée
-- Copier le code d'une classe dans une autre
-- Importer des paquets avec Composer
-? Dans public/index.php : $repository = new LivreRepository($pdo); $controller = new LivreController($repository, $vue, $csrf);
-
-Q: Pourquoi le nom du template ne doit-il jamais venir d'un paramètre libre de l'URL ? [cours]
-+ Sinon un attaquant pourrait faire inclure un fichier arbitraire du serveur
-- Parce que les templates sont chiffrés par la vue
-- Parce que l'URL est limitée à vingt caractères
-- Parce que PHP interdit les include dynamiques
-? PhpView::render fait require __DIR__ . '/../../views/' . $template . '.php' : le nom vient du code, jamais du client.
-
-Q: Le constructeur de Livre lève InvalidArgumentException pour un titre vide. Quel statut renvoie le contrôleur ? [cours]
-= 422
-? 422 : saisie non conforme aux règles, formulaire réaffiché avec la valeur et le message.
-
-Q: Un jeton CSRF absent ou invalide donne quel statut ? [cours]
-= 403
-? 403 Forbidden : traitement refusé. Aucune ligne n'est créée.
-
-Q: Pourquoi intercepter InvalidArgumentException plutôt que Throwable dans le contrôleur ? [cours]
-+ Pour ne pas déguiser des pannes techniques en erreurs métier
-- Parce que Throwable n'existe pas en PHP 8
-- Parce que Throwable ne peut pas être attrapé
-- Pour obtenir un message d'erreur plus court
-? Une erreur SQL doit remonter : un middleware la journalise et présente un 500 neutre, jamais un faux 404 ou 422.
-
-Q: Une requête SQL échoue de façon inattendue. Quelle réponse est la plus appropriée ? [cours]
-+ Un 500 neutre, avec le détail journalisé côté serveur
-- Un 404, pour ne pas inquiéter l'utilisateur
-- Un 422 avec le message SQL complet
-- Un 200 avec une page blanche
-? 404 : absence attendue. 500 : panne, à journaliser. Les traces et chemins internes ne s'affichent jamais en production.
-
-Q: Demain les clients veulent du JSON au lieu de HTML. Que doit-on principalement adapter ? [cours]
-+ La représentation de sortie (contrôleur / format), pas le modèle ni le repository
-- Le schéma de la base SQLite
-- La règle de validation du titre dans Livre
-- Toutes les requêtes SQL du repository
-? Le même métier peut alimenter plusieurs interfaces : seule la couche HTTP change.
-
-Q: Après un refactoring vers MVC, quelles contraintes mesurables peut-on vérifier ?
-+ Seule la couche repository utilise Medoo
-+ Les vues ne lancent aucune requête
-+ Le domaine ne dépend pas de Slim
-- Les contrôleurs lisent $_POST directement
-? Autres contrôles possibles : aucune classe ne lit $_GET ou $_POST, public/index.php reste court, et la recette reste verte après chaque extraction.
-
-Q: Pourquoi initialiser la base (database/init.php) en dehors des routes ? [cours]
-+ Afficher une page ne doit pas recréer la structure SQL
-- Parce que les routes n'ont pas accès à la base
-- Parce que SQLite refuse les CREATE TABLE dans une route
-- Parce que le script est plus rapide dans un autre dossier
-? L'initialisation se fait une fois, par un script autonome (php database/init.php).
-
-Q: Pourquoi utiliser SQLite pour un projet d'apprentissage ? [cours]
-+ Aucun serveur à installer, mais la même API PDO que MySQL
-- Parce qu'il est plus sécurisé que MySQL
-- Parce qu'il est conçu pour de très gros volumes
-- Parce que Slim ne fonctionne qu'avec SQLite
-? Limite assumée : SQLite convient à un projet pédagogique ; une application multi-utilisateurs a d'autres contraintes.
-
-Q: Que vérifie un test de vue sur un titre contenant du HTML ? [cours]
-+ Que le HTML reçu comme titre est affiché comme texte
-- Que la vue exécute le HTML pour mettre le titre en gras
-- Que le titre est enregistré en base sans modification
-- Que la vue génère automatiquement du JSON
-? Exemple : un titre « <b>x</b> » doit apparaître littéralement, pas en gras.
-
-Q: Pour être convaincant à l'oral sur le MVC, quel argument montre une vraie compréhension ? [cours]
-+ Je peux tracer une requête, justifier chaque couche et la tester
-- J'ai trois dossiers nommés Model, View et Controller
-- Mon code est très court
-- J'ai utilisé le framework Slim
-? « J'ai codé du MVC » ne suffit pas : expliquer le trajet GET /livres/1, les responsabilités et ce qui devient facile à changer.
-
-# 24
 
 Q: Quelle méthode HTTP sert à créer une ressource dans une collection ?
 = POST
@@ -577,6 +462,25 @@ Q: Que doit contenir la réponse à un POST de création réussi ?
 - Le statut 204 et un corps vide
 - Le statut 303 et un formulaire pré-rempli
 ? Location: /api/films/{id} indique l'URL de la ressource créée.
+
+Q: Quelle différence de réponse après la création d'une ressource, côté page HTML et côté API JSON ?
++ HTML : redirection 303 vers la fiche ; JSON : 201 avec Location et la représentation
+- HTML : 201 avec Location ; JSON : redirection 303 vers la fiche
+- Les deux renvoient 200 avec le même corps
+- HTML : 204 sans corps ; JSON : 303 vers la liste
+? Une page HTML suit Post/Redirect/Get ; une API renvoie la ressource créée avec son URL.
+
+Q: Un POST /api/messages reçoit un JSON mal formé. Quel statut renvoie-t-on ?
+= 400
+? 400 : la requête est impossible à lire. Un JSON lisible mais invalide pour le métier donne 422.
+
+Q: Le JSON reçu est lisible, mais la propriété message est vide. Quel statut ?
+= 422
+? 422 Unprocessable Entity (ou Content) : la demande est compréhensible mais viole les règles métier.
+
+Q: Quel statut annonce une ressource créée ?
+= 201
+? 201 Created, avec un en-tête Location vers l'URL de la nouvelle ressource.
 
 Q: Rejouer deux fois DELETE /api/films/7 : pourquoi DELETE est-il quand même idempotent ?
 + L'état final du serveur est le même : la ressource est absente
@@ -655,7 +559,7 @@ Q: Que caractérise le niveau 2 de Richardson ? [cours]
 - Des liens hypermédias qui guident le client
 - Une URL unique pour toutes les opérations
 - Des ressources identifiées mais manipulées uniquement en POST
-? Niveau 1 : ressources identifiées. Niveau 3 : hypermédia (HATEOAS). Le mini-projet vise le niveau 2.
+? Niveau 1 : ressources identifiées. Niveau 3 : hypermédia (HATEOAS). La plupart des API REST visent le niveau 2.
 
 Q: Que signifie HATEOAS ? [cours]
 + Hypermedia As The Engine Of Application State
@@ -699,13 +603,6 @@ Q: À quoi sert un fichier OpenAPI (openapi.yaml) ? [cours]
 - À remplacer les tests d'intégration
 ? Utile pour la documentation, la génération de clients et les tests de contrat.
 
-Q: Pourquoi json_encode avec JSON_THROW_ON_ERROR ? [cours]
-+ Un échec de sérialisation devient une exception explicite
-- Pour que le JSON soit toujours indenté
-- Pour chiffrer le JSON avant l'envoi
-- Pour accélérer l'encodage des grands tableaux
-? JSON_UNESCAPED_UNICODE conserve les accents tels quels dans le JSON.
-
 Q: Les routes /api/ doivent-elles démarrer une session PHP ? [cours]
 + Non : la session reste réservée aux formulaires HTML et à leur CSRF
 - Oui : elle est nécessaire à chaque requête JSON
@@ -748,107 +645,27 @@ Q: Quelles informations ne doivent jamais apparaître dans une réponse d'erreur
 - Les détails de validation champ par champ
 ? Un message précis est utile ; les traces SQL, les chemins et les secrets internes ne sont jamais exposés.
 
-Q: Comment gérer une pagination incohérente (page=-3) dans GET /api/films ?
+Q: Quel statut renvoyer pour une pagination incohérente (page=-3) dans GET /api/films ?
 = 400
 ? Refuser avec 400 et un message d'erreur explicite, au format d'erreur uniforme.
 
-# 25
+Q: Un utilisateur authentifié demande la réservation d'un autre compte. Quand l'API peut-elle répondre 404 plutôt que 403 ? [cours]
++ Quand elle masque volontairement l'existence de la ressource
+- Quand le jeton est expiré, puisque l'identité n'est plus connue
+- Quand la requête utilise la méthode DELETE, jamais avec GET
+- Quand le serveur est trop chargé pour vérifier les droits
+? 403 : identité connue mais accès interdit. 404 : choix possible pour ne pas révéler qu'une ressource existe, à condition de l'appliquer partout et de le documenter. 401 concerne une authentification absente ou invalide.
 
-Q: Combien d'emprunts actifs un adhérent peut-il avoir simultanément ?
-= 3
-? Règle métier : maximum trois emprunts actifs, chacun pendant 21 jours.
+Q: Quelle méthode et quelle réponse pour passer le statut d'une réservation existante à « annulée » ? [cours]
++ PATCH sur la ressource, qui répond 200 avec l'objet modifié
+- PUT sur la collection, qui répond 201 avec un en-tête Location
+- POST sur la ressource, qui répond 204 sans corps
+- DELETE sur la ressource, qui répond 200 avec l'ancien objet
+? PATCH modifie partiellement une ressource (ici le seul attribut statut) ; PUT remplacerait la représentation complète. L'état cible est renvoyé dans l'objet mis à jour (200). La cohérence des places disponibles reste à garantir côté implémentation.
 
-Q: Qui calcule la date d'échéance d'un emprunt ?
-+ Le serveur, jamais le navigateur
-- Le navigateur, au moment de l'envoi du formulaire
-- Le bibliothécaire, en la saisissant à la main
-- Le client mobile, avec l'horloge de son téléphone
-? Une date fournie par le client serait falsifiable. EmpruntService la calcule : $maintenant->modify('+21 days').
-
-Q: Que fait un retour de document dans la base ?
-+ Il renseigne retour_le sans supprimer l'historique
-- Il supprime la ligne d'emprunt correspondante
-- Il remet à zéro tous les emprunts de l'adhérent
-- Il archive automatiquement le document emprunté
-? L'historique est conservé : un emprunt actif est un emprunt dont retour_le est NULL.
-
-Q: Pourquoi EmpruntService reçoit-il la date courante en paramètre ?
-+ Pour pouvoir tester les règles en fixant « aujourd'hui »
-- Parce que PHP ne sait pas lire l'heure du serveur
-- Parce que la base impose la date du jour
-- Pour que l'horloge de l'adhérent fasse foi
-? Injecter la date rend le service déterministe : un test peut vérifier l'échéance pour une date connue.
-
-Q: Quel avantage a DateTimeImmutable sur DateTime ?
-+ modify('+21 days') renvoie une nouvelle date sans altérer l'originale
-- Il gère automatiquement les fuseaux horaires pour tous les utilisateurs
-- Il est le seul à pouvoir additionner des jours
-- Il stocke la date directement dans la base de données
-? Même logique que PSR-7 : les objets immuables évitent les effets de bord surprenants.
-
-Q: Pourquoi l'emprunt est-il une opération transactionnelle ?
-+ Entre la vérification de disponibilité et l'insertion, aucun état intermédiaire ne doit rester validé
-- Parce que PDO refuse les INSERT en dehors d'une transaction
-- Parce que chaque INSERT doit être répété deux fois
-- Pour accélérer les requêtes de lecture
-? Atomicité : tout réussit ou rien n'est conservé (voir le chapitre 17).
-
-Q: Comment HTML et JSON partagent-ils les règles de l'emprunt ?
-+ Les deux contrôleurs appellent le même EmpruntService
-- Le contrôleur HTML contient les règles, l'API les recopie
-- L'API JSON appelle le contrôleur HTML en interne
-- Les règles sont réécrites dans chaque vue
-? Seuls les contrôleurs diffèrent (représentation et statuts) : Controller/ pour le HTML, Api/ pour le JSON.
-
-Q: Quelle différence de réponse après la création d'un document, en HTML et en JSON ?
-+ HTML : redirection 303 vers la fiche ; JSON : 201 avec Location et la représentation
-- HTML : 201 avec Location ; JSON : redirection 303 vers la fiche
-- Les deux renvoient 200 avec le même corps
-- HTML : 204 sans corps ; JSON : 303 vers la liste
-? HTML suit Post/Redirect/Get ; une API renvoie la ressource créée avec son URL.
-
-Q: Dans la médiathèque, quand les sessions PHP sont-elles utilisées ?
-+ Uniquement pour l'interface web (formulaires, CSRF)
-- Pour toutes les routes, y compris l'API JSON
-- Uniquement pour l'API JSON
-- Jamais : le projet n'utilise aucune session
-? Le CSRF protège les formulaires HTML d'écriture ; l'API ne démarre pas de session.
-
-Q: Comment définit-on un emprunt « en retard » ?
-+ L'échéance est dépassée et retour_le est NULL
-- L'échéance est dépassée, même si le document est rendu
-- retour_le est renseigné après l'échéance
-- Le document n'a pas été emprunté depuis 21 jours
-? Une page de retards liste les emprunts actifs dont la date d'échéance est passée.
-
-Q: Comment représente-t-on « un document a plusieurs auteurs, un auteur plusieurs documents » ?
-+ Par une table d'association entre documents et auteurs
-- Par une colonne contenant les auteurs séparés par des virgules
-- Par une clé primaire sur le nom de l'auteur
-- Par une copie du document pour chaque auteur
-? Relation plusieurs-à-plusieurs : deux clés étrangères dans la table d'association.
-
-Q: Quelle règle ne peut pas être garantie par une simple contrainte de colonne ?
-+ Le maximum de trois emprunts actifs par adhérent
-- Le caractère obligatoire du titre d'un document
-- L'unicité de l'email d'un adhérent
-- Le fait qu'une date d'échéance est renseignée
-? Elle porte sur plusieurs lignes : le service la vérifie (dans une transaction) ; la base apporte les autres contraintes.
-
-Q: Qu'est-ce qu'une bonne démonstration devant le jury ?
-+ Un scénario : recherche, emprunt, refus expliqué, retour
-- Une visite commentée des fichiers, dossier par dossier
-- La lecture du code de chaque classe, ligne par ligne
-- Une présentation uniquement orale, sans lancer l'application
-? Chaque membre doit pouvoir expliquer le trajet complet d'une requête : client, front controller, middleware, routeur, contrôleur, service, repository, base, vue ou JSON.
-
-Q: Combien de tests automatisés au minimum sur EmpruntService ?
-= 3
-? Testez notamment : exemplaire déjà emprunté, adhérent suspendu, quatrième emprunt, échéance calculée par le serveur.
-
-Q: Quels sont des exemples de middleware utiles pour la médiathèque ?
-+ Un identifiant de requête
-+ La mesure de la durée de traitement
-+ Un en-tête de sécurité
-- La conversion des tables en objets
-? Un middleware traite une préoccupation transversale avant ou après la route : journal, protection d'une zone de gestion, en-têtes de sécurité.
+Q: Comment une API PHP renvoie-t-elle correctement du JSON, sans framework ?
++ header('Content-Type: application/json; charset=utf-8') puis echo json_encode($donnees)
+- echo json_encode($donnees) suffit, le navigateur devine le format
+- header('Accept: application/json') puis print_r($donnees)
+- echo serialize($donnees) avec le statut 200
+? Le Content-Type indique au client comment lire le corps ; on fixe aussi le statut avec http_response_code() quand il n'est pas 200.

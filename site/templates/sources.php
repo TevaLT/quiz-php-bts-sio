@@ -17,11 +17,11 @@ $coursFerut = [
     <section class="carte" aria-labelledby="titre-origine">
         <h2 id="titre-origine">D'où viennent les questions</h2>
         <p>
-            Les questions servent à réviser le programme de BTS SIO option SLAM (2<sup>e</sup> année) :
-            bases de PHP, web, bases de données, outils, architecture MVC, API REST et JavaScript.
+            Les questions servent à apprendre et réviser le langage PHP (bases, programmation objet, web, bases de données,
+            architecture MVC, API REST, JWT) et JavaScript, au niveau du BTS SIO option SLAM.
         </p>
         <p>
-            Les chapitres 26 à 29 et la plupart des questions « tirées des cours » s'appuient sur les cours de
+            Les chapitres 23 à 26 et les questions « tirées des cours » s'appuient sur les cours de
             <strong>Térence FERUT</strong> (AstroWare Conception), publiés sous licence
             <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" rel="license">CC BY-SA 4.0</a> :
         </p>
@@ -35,9 +35,9 @@ $coursFerut = [
             elles ne remplacent pas les cours, qui restent la référence pour apprendre.
         </p>
         <p>
-            Les autres questions sont originales : elles portent sur les notions travaillées en TP, sans en reproduire les sujets.
-            Quelques notions générales viennent aussi d'un MOOC PHP et d'un sujet de synthèse corrigé (PHP, PDO, MVC, REST) ;
-            elles ont été reformulées sur d'autres exemples, sans reprendre leur texte.
+            Les autres questions sont originales et portent sur le langage lui-même : elles ne reprennent ni le contenu ni
+            les sujets des exercices de TP. Quelques notions générales viennent aussi d'un MOOC PHP et d'un sujet de synthèse
+            corrigé (PHP, PDO, MVC, REST) ; elles ont été reformulées sur d'autres exemples, sans reprendre leur texte.
         </p>
     </section>
 

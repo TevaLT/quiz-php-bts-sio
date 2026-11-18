@@ -10,7 +10,18 @@ declare(strict_types=1);
 const THEMES = ['auto' => 'Auto', 'clair' => 'Clair', 'sombre' => 'Sombre'];
 
 /** Pages vers lesquelles on peut revenir après un changement de thème (liste blanche : pas de redirection ouverte). */
-const PAGES_RETOUR = ['/', '/stats', '/question', '/correction', '/bilan', '/sources'];
+const PAGES_RETOUR = ['/', '/stats', '/question', '/correction', '/bilan', '/sources', '/fiches'];
+
+/**
+ * URL d'une ressource statique, versionnée par sa date de modification (/assets/app.js?v=…) : le navigateur peut
+ * la garder en cache longtemps, et une nouvelle version change l'URL.
+ */
+function urlRessource(string $chemin): string
+{
+    $fichier = RACINE_SITE . '/public' . $chemin;
+
+    return $chemin . (is_file($fichier) ? '?v=' . dechex((int) filemtime($fichier)) : '');
+}
 
 /** Échappe une valeur pour l'insérer dans du HTML (à utiliser à CHAQUE sortie). */
 function e(mixed $valeur): string
@@ -92,6 +103,15 @@ function themeActuel(): string
     $theme = $_COOKIE['quiz_theme'] ?? 'auto';
 
     return is_string($theme) && isset(THEMES[$theme]) ? $theme : 'auto';
+}
+
+/** Thème suivant dans le cycle Auto → Clair → Sombre → Auto (un seul bouton dans l'en-tête). */
+function themeSuivant(string $theme): string
+{
+    $cles = array_keys(THEMES);
+    $position = array_search($theme, $cles, true);
+
+    return $cles[(is_int($position) ? $position + 1 : 0) % count($cles)];
 }
 
 function enregistrerTheme(string $theme): void

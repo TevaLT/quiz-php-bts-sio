@@ -1,6 +1,7 @@
 <?php
 /**
  * @var array $stats
+ * @var list<array{ch:string,titre:string,taux:int,essais:int}> $fragiles   chapitres les moins réussis
  */
 $progression = $stats['progression'];
 ?>
@@ -17,7 +18,30 @@ $progression = $stats['progression'];
             <div class="carte chiffre"><span class="valeur"><?= (int) $stats['sessions'] ?></span><span class="legende">parties jouées</span></div>
             <div class="carte chiffre"><span class="valeur"><?= (int) $stats['reponses'] ?></span><span class="legende">réponses données</span></div>
             <div class="carte chiffre <?= e(classeTaux($stats['reussite'])) ?>"><span class="valeur"><?= (int) $stats['reussite'] ?> %</span><span class="legende">de réussite globale</span></div>
+            <div class="carte chiffre"><span class="valeur"><?= (int) $stats['meilleure_serie'] ?></span><span class="legende">bonnes réponses d'affilée (record)</span></div>
         </div>
+        <?php if ($stats['temps_moyen'] !== null): ?>
+            <p class="discret">Temps moyen par réponse (parties où il a été mesuré) : <strong><?= e(formaterSecondes($stats['temps_moyen'])) ?></strong>.</p>
+        <?php endif; ?>
+
+        <?php if ($fragiles !== []): ?>
+            <section class="carte conseil" aria-labelledby="titre-fragiles">
+                <div class="conseil-texte">
+                    <h2 id="titre-fragiles">Tes points faibles</h2>
+                    <p class="discret">Les chapitres où tu réussis le moins, sur au moins quelques réponses :
+                        <?= e(implode(', ', array_map(static fn (array $f): string => $f['titre'] . ' (' . $f['taux'] . ' %)', $fragiles))) ?>.</p>
+                </div>
+                <form method="post" action="/partie">
+                    <?= champCsrf() ?>
+                    <input type="hidden" name="mode" value="normal">
+                    <input type="hidden" name="n" value="<?= NOMBRE_QUESTIONS_DEFAUT ?>">
+                    <?php foreach ($fragiles as $f): ?>
+                        <input type="hidden" name="chapitres[]" value="<?= e($f['ch']) ?>">
+                    <?php endforeach; ?>
+                    <button class="btn primaire" type="submit">M'entraîner dessus</button>
+                </form>
+            </section>
+        <?php endif; ?>
 
         <section class="carte" aria-labelledby="titre-progression">
             <h2 id="titre-progression">Progression</h2>
@@ -76,7 +100,7 @@ $progression = $stats['progression'];
                 <tbody>
                     <?php foreach ($stats['chapitres'] as $ch => $c): ?>
                         <tr>
-                            <th scope="row"><span class="num"><?= e((string) $ch) ?></span> <?= e($c['titre']) ?></th>
+                            <th scope="row"><span class="num"><?= e((string) $ch) ?></span> <a href="/fiches?ch=<?= e((string) $ch) ?>"><?= e($c['titre']) ?></a></th>
                             <td><?= (int) $c['vues'] ?> / <?= (int) $c['banque'] ?></td>
                             <td class="col-barre"><?= barreSvg($c['taux'] ?? 0, classeTaux($c['taux'])) ?></td>
                             <td class="taux <?= e(classeTaux($c['taux'])) ?>"><?= $c['taux'] === null ? '—' : (int) $c['taux'] . ' %' ?></td>
